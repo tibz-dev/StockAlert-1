@@ -28,6 +28,20 @@ public class ProductService : IProductService
             ))
             .ToListAsync();
     }
+    public async Task<IEnumerable<SaleDto>> GetAllSalesAsync()
+    {
+        return await _context.Sales
+            .Include(s => s.Product)
+            .OrderByDescending(s => s.SaleDate)
+            .Select(s => new SaleDto(
+                s.Id,
+                s.Product != null ? s.Product.Name : "Unknown Product",
+                s.Quantity,
+                s.TotalPrice,
+                s.SaleDate
+            ))
+            .ToListAsync();
+    }
 
     public async Task<ProductDto?> GetProductByIdAsync(Guid id)
     {
@@ -75,5 +89,36 @@ public class ProductService : IProductService
         await _context.SaveChangesAsync(default);
 
         return product.Id;
+    }
+
+    public async Task<bool> RecordSaleAsync(CreateSaleRequest request)
+    {
+        var product = await _context.Products.FindAsync(request.ProductId);
+
+
+        if (product == null || product.StockQuantity < request.Quantity)
+        {
+            return false;
+        }
+
+       
+        product.StockQuantity -= request.Quantity;
+
+       
+        var sale = new Sale
+        {
+            Id = Guid.NewGuid(),
+            ProductId = product.Id,
+            Quantity = request.Quantity,
+            SaleDate = DateTime.UtcNow,
+            TotalPrice = product.Price * request.Quantity
+        };
+
+        _context.Sales.Add(sale);
+
+       
+        await _context.SaveChangesAsync(default);
+
+        return true;
     }
 }
