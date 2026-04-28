@@ -10,4 +10,6 @@ public interface IProductService
 
     Task<bool> RecordSaleAsync(CreateSaleRequest request);
     Task<IEnumerable<SaleDto>> GetAllSalesAsync();
+
+    Task<DashboardDto> GetDashboardStatsAsync();
 }

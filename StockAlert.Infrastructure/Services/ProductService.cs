@@ -121,4 +121,19 @@ public class ProductService : IProductService
 
         return true;
     }
+
+    public async Task<DashboardDto> GetDashboardStatsAsync()
+    {
+        var products = await _context.Products.ToListAsync();
+        var sales = await _context.Sales.ToListAsync();
+
+        return new DashboardDto(
+            TotalProducts: products.Count,
+            TotalInventoryValue: products.Sum(p => p.Price * p.StockQuantity),
+            LowStockAlerts: products.Count(p => p.StockQuantity < 5),
+            TotalSalesRevenue: sales.Sum(s => s.TotalPrice),
+           
+            TopSellingProducts: (await GetAllProductsAsync()).ToList()
+        );
+    }
 }
