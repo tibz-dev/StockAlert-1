@@ -11,4 +11,6 @@ public record ProductDto(
     string Name,
     decimal Price,
     int StockQuantity,
-    string CategoryName);
+    string CategoryName,
+    bool isLowStock 
+);
