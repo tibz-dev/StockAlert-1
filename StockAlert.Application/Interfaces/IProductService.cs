@@ -12,4 +12,6 @@ public interface IProductService
     Task<IEnumerable<SaleDto>> GetAllSalesAsync();
 
     Task<DashboardDto> GetDashboardStatsAsync();
+    Task<int> SyncWithSmartTradeAsync();
+    Task<byte[]> GenerateStockReportAsync();
 }

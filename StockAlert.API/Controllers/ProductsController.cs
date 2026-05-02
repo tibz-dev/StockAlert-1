@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using StockAlert.Application.DTOs;
 using StockAlert.Application.Interfaces;
@@ -29,5 +30,21 @@ public class ProductsController : ControllerBase
     {
         var id = await _productService.CreateProductAsync(request);
         return CreatedAtAction(nameof(Get), new { id }, id);
+    }
+
+    [Authorize] // Only logged-in users can sync
+    [HttpPost("sync-smarttrade")]
+    public async Task<IActionResult> SyncSmartTrade()
+    {
+        var updatedItems = await _productService.SyncWithSmartTradeAsync();
+        return Ok(new { message = $"Sync complete. {updatedItems} products updated.", timestamp = DateTime.UtcNow });
+    }
+    [HttpGet("report/csv")]
+    public async Task<IActionResult> DownloadReport()
+    {
+        var fileBytes = await _productService.GenerateStockReportAsync();
+        var fileName = $"StockReport_{DateTime.Now:yyyyMMdd}.csv";
+
+        return File(fileBytes, "text/csv", fileName);
     }
 }

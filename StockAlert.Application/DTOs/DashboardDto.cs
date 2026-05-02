@@ -10,5 +10,8 @@ public record DashboardDto(
     decimal TotalInventoryValue,
     int LowStockAlerts,
     decimal TotalSalesRevenue,
-    List<ProductDto> TopSellingProducts
+    List<ProductDto> TopSellingProducts,
+    int DiscrepancyCount, // Number of items where local stock != SmartTrade stock
+    List<string> SyncLogs // History of last 5 successful syncs
+
 );

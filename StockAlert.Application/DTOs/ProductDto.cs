@@ -12,5 +12,6 @@ public record ProductDto(
     decimal Price,
     int StockQuantity,
     string CategoryName,
-    bool isLowStock 
+    bool IsLowStock,
+    string? ExternalId 
 );

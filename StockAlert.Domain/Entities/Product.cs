@@ -12,4 +12,6 @@ public class Product
     public Category? Category { get; set; }
     public Guid SupplierId { get; set; }
     public Supplier? Supplier { get; set; }
+    public string? ExternalId { get; set; } // The ID from SmartTrade
+    public string? ExternalSource { get; set; } // e.g., "SmartTrade"
 }

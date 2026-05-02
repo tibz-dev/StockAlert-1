@@ -19,6 +19,12 @@ public static class DependencyInjection
 
         services.AddScoped<IProductService, ProductService>();
 
+        
+        services.AddHttpClient<IExternalStockService, SmartTradeAdapter>(client =>
+        {
+            client.BaseAddress = new Uri(configuration["ExternalServices:SmartTradeUrl"] ?? "https://api.smarttrade.com");
+        });
+
         return services;
     }
 }

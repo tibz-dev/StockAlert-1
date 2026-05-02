@@ -15,7 +15,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
     public DbSet<Supplier> Suppliers => Set<Supplier>();
     public DbSet<Sale> Sales => Set<Sale>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>(); // New Table
-
+    
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         OnBeforeSaveChanges();

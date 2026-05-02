@@ -8,10 +8,11 @@ namespace StockAlert.Infrastructure.Services;
 public class ProductService : IProductService
 {
     private readonly IApplicationDbContext _context;
-
-    public ProductService(IApplicationDbContext context)
+    private readonly IExternalStockService _externalStockService;
+    public ProductService(IApplicationDbContext context, IExternalStockService externalStockService)
     {
         _context = context;
+        _externalStockService = externalStockService;
     }
 
     public async Task<IEnumerable<ProductDto>> GetAllProductsAsync()
@@ -24,7 +25,8 @@ public class ProductService : IProductService
                 p.Price,
                 p.StockQuantity,
                 p.Category != null ? p.Category.Name : "N/A",
-                p.StockQuantity < 5 
+                p.StockQuantity < 5,
+                p.ExternalId
             ))
             .ToListAsync();
     }
@@ -49,7 +51,7 @@ public class ProductService : IProductService
             .Include(p => p.Category)
             .FirstOrDefaultAsync(x => x.Id == id);
 
-        return p == null ? null : new ProductDto(p.Id, p.Name, p.Price, p.StockQuantity, p.Category?.Name ?? "N/A", p.StockQuantity < 5);
+        return p == null ? null : new ProductDto(p.Id, p.Name, p.Price, p.StockQuantity, p.Category?.Name ?? "N/A", p.StockQuantity < 5, p.ExternalId);
     }
 
     public async Task<Guid> CreateProductAsync(CreateProductRequest request)
@@ -132,8 +134,54 @@ public class ProductService : IProductService
             TotalInventoryValue: products.Sum(p => p.Price * p.StockQuantity),
             LowStockAlerts: products.Count(p => p.StockQuantity < 5),
             TotalSalesRevenue: sales.Sum(s => s.TotalPrice),
-           
-            TopSellingProducts: (await GetAllProductsAsync()).ToList()
+            TopSellingProducts: (await GetAllProductsAsync()).ToList(),
+            DiscrepancyCount: 0, // Placeholder
+            SyncLogs: new List<string> { "Initial setup complete" } // Placeholder
         );
+    }
+
+    public async Task<int> SyncWithSmartTradeAsync()
+    {
+        // 1. Fetch products from SmartTrade (via our Adapter)
+        var externalProducts = await _externalStockService.SyncFromExternalAsync();
+        int updateCount = 0;
+
+        foreach (var ext in externalProducts)
+        {
+            // 2. Find the local product using the ExternalId we added
+            var localProduct = await _context.Products
+                .FirstOrDefaultAsync(p => p.ExternalId == ext.ExternalId);
+
+            if (localProduct != null && localProduct.StockQuantity != ext.StockQuantity)
+            {
+                // 3. Update the local stock to match SmartTrade
+                localProduct.StockQuantity = ext.StockQuantity;
+                updateCount++;
+            }
+        }
+
+        // 4. Save changes - This will trigger our AuditLog automatically!
+        if (updateCount > 0)
+        {
+            await _context.SaveChangesAsync(default);
+        }
+
+        return updateCount;
+    }
+
+    public async Task<byte[]> GenerateStockReportAsync()
+    {
+        var products = await GetAllProductsAsync();
+        var builder = new System.Text.StringBuilder();
+
+        // Header row
+        builder.AppendLine("Product Name,Category,Price,Stock Quantity,Low Stock Alert");
+
+        foreach (var p in products)
+        {
+            builder.AppendLine($"{p.Name},{p.CategoryName},{p.Price},{p.StockQuantity},{p.IsLowStock}");
+        }
+
+        return System.Text.Encoding.UTF8.GetBytes(builder.ToString());
     }
 }
