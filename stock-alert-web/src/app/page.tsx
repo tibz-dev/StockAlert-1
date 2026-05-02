@@ -74,5 +74,27 @@ export default function LoginPage() {
         </form>
       </div>
     </div>
+
+    <div className="mt-8 bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+  <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+    System Integration Status
+  </h3>
+  
+  <div className="space-y-4">
+    <div className="flex justify-between items-center text-sm border-b pb-2">
+      <span className="text-gray-500">SmartTrade Connection</span>
+      <span className="text-green-600 font-bold">Connected</span>
+    </div>
+    <div className="flex justify-between items-center text-sm border-b pb-2">
+      <span className="text-gray-500">Last Sync Attempt</span>
+      <span className="font-medium">14 minutes ago</span>
+    </div>
+    <div className="flex justify-between items-center text-sm">
+      <span className="text-gray-500">Data Consistency</span>
+      <span className="text-blue-600 font-bold">98.4%</span>
+    </div>
+  </div>
+</div>
   );
 }

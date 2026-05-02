@@ -81,7 +81,19 @@ export default function InventoryPage() {
                     </span>
                   )}
                 </td>
-              </tr>
+                <td className="p-4">
+                    {p.isLowStock && p.supplierEmail ? (
+                        <a 
+                        href={`mailto:${p.supplierEmail}?subject=Order Request: ${p.name}`}
+                        className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition"
+                        >
+                        Contact Supplier
+                        </a>
+                    ) : (
+                        <span className="text-gray-400 text-xs">---</span>
+                    )}
+                    </td>
+                </tr>
             ))}
           </tbody>
         </table>

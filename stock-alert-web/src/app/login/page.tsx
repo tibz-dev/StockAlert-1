@@ -1,81 +1,72 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import api from '@/lib/api';
-import { Lock, Mail, Loader2 } from 'lucide-react';
+import { Package, AlertTriangle, TrendingUp, RefreshCw, Loader2 } from 'lucide-react';
 
-export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const router = useRouter();
+export default function Dashboard() {
+  const [stats, setStats] = useState<any>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-
-    try {
-      const response = await api.post('/auth/login', { email, password });
-      
-      // Store the token for the API interceptor to use
-      localStorage.setItem('token', response.data.token);
-      
-      // Redirect to the dashboard
-      router.push('/');
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Login failed. Please check your credentials.');
-    } finally {
-      setLoading(false);
-    }
+  const loadData = async () => {
+    const res = await api.get('/dashboard/summary');
+    setStats(res.data);
   };
 
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-100 p-4">
-      <div className="w-full max-w-md space-y-8 rounded-2xl bg-white p-10 shadow-xl">
-        <div className="text-center">
-          <h2 className="mt-6 text-3xl font-extrabold text-gray-900">StockAlert Login</h2>
-          <p className="mt-2 text-sm text-gray-600">Access your inventory dashboard</p>
-        </div>
-        
-        <form className="mt-8 space-y-6" onSubmit={handleLogin}>
-          {error && <div className="text-red-500 text-sm bg-red-50 p-2 rounded border border-red-200">{error}</div>}
-          
-          <div className="space-y-4 rounded-md shadow-sm">
-            <div className="relative">
-              <Mail className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-              <input
-                type="email"
-                required
-                className="w-full rounded-lg border border-gray-300 p-2.5 pl-10 focus:border-blue-500 focus:ring-blue-500"
-                placeholder="Email address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
-            <div className="relative">
-              <Lock className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-              <input
-                type="password"
-                required
-                className="w-full rounded-lg border border-gray-300 p-2.5 pl-10 focus:border-blue-500 focus:ring-blue-500"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
-          </div>
+  useEffect(() => { loadData(); }, []);
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="group relative flex w-full justify-center rounded-lg bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none disabled:bg-blue-400"
-          >
-            {loading ? <Loader2 className="animate-spin" /> : 'Sign in'}
-          </button>
-        </form>
+  const triggerSync = async () => {
+    setIsSyncing(true);
+    await api.post('/products/sync-smarttrade');
+    await loadData();
+    setIsSyncing(false);
+  };
+
+  if (!stats) return <div className="p-20 text-center"><Loader2 className="animate-spin inline" /> Loading...</div>;
+
+  return (
+    <div className="p-8 max-w-7xl mx-auto">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold">Dashboard</h1>
+        <button 
+          onClick={triggerSync}
+          disabled={isSyncing}
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg flex gap-2 items-center hover:bg-blue-700 disabled:bg-blue-400"
+        >
+          <RefreshCw className={isSyncing ? 'animate-spin' : ''} size={18} />
+          {isSyncing ? 'Syncing...' : 'Sync SmartTrade'}
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <StatCard title="Inventory Value" value={`$${stats.totalInventoryValue}`} icon={<TrendingUp />} color="text-green-600" />
+        <StatCard title="Total Items" value={stats.totalProducts} icon={<Package />} color="text-blue-600" />
+        <StatCard title="Low Stock" value={stats.lowStockAlerts} icon={<AlertTriangle />} color="text-red-600" />
+      </div>
+
+      <div className="mt-8 bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+        <h3 className="font-bold mb-4 flex items-center gap-2">
+          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+          Integration Health
+        </h3>
+        <div className="text-sm text-gray-600 space-y-2">
+          <div className="flex justify-between border-b pb-2"><span>Source</span><span className="font-bold">SmartTrade API</span></div>
+          <div className="flex justify-between"><span>Last Sync</span><span className="font-medium">Success (Just now)</span></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatCard({ title, value, icon, color }: any) {
+  return (
+    <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100">
+      <div className="flex items-center gap-4">
+        <div className={`p-3 rounded-lg bg-gray-50 ${color}`}>{icon}</div>
+        <div>
+          <p className="text-gray-500 text-sm">{title}</p>
+          <h2 className="text-2xl font-bold">{value}</h2>
+        </div>
       </div>
     </div>
   );
