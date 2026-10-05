@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Loader2, PackagePlus, Save, X } from 'lucide-react';
 import api from '@/lib/api';
 import type { Product, ProductFormValues } from '@/types/inventory';
