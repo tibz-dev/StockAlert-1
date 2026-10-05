@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
@@ -7,6 +8,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
+  History,
   Loader2,
   Mail,
   Package,
@@ -321,6 +323,14 @@ export default function InventoryPage() {
                         <SlidersHorizontal size={13} />
                         Adjust
                       </button>
+
+                      <Link
+                        href={`/stock-movements?productId=${product.id}`}
+                        className="inline-flex items-center gap-1 rounded-md border border-violet-200 bg-violet-50 px-2.5 py-1.5 text-xs font-semibold text-violet-700 transition hover:bg-violet-100"
+                      >
+                        <History size={13} />
+                        History
+                      </Link>
 
                       {product.isLowStock && product.supplierEmail && (
                         <a
