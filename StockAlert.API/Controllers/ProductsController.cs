@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 using StockAlert.Application.DTOs;
 using StockAlert.Application.Interfaces;
 
@@ -89,7 +90,15 @@ public class ProductsController : ControllerBase
     {
         try
         {
-            var adjusted = await _productService.AdjustStockAsync(id, request);
+            var performedBy =
+                User.FindFirstValue(ClaimTypes.Email)
+                ?? User.FindFirstValue(ClaimTypes.NameIdentifier)
+                ?? "Unknown User";
+
+            var adjusted = await _productService.AdjustStockAsync(
+                id,
+                request,
+                performedBy);
 
             return adjusted
                 ? Ok(await _productService.GetProductByIdAsync(id))
