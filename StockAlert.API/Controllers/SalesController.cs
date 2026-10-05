@@ -1,7 +1,11 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using StockAlert.Application.DTOs;
 using StockAlert.Application.Interfaces;
 
+namespace StockAlert.API.Controllers;
+
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class SalesController : ControllerBase
@@ -12,12 +16,14 @@ public class SalesController : ControllerBase
     {
         _productService = productService;
     }
+
     [HttpGet]
     public async Task<IActionResult> Get()
     {
-        var sales = await _productService.GetAllProductsAsync();
+        var sales = await _productService.GetAllSalesAsync();
         return Ok(sales);
     }
+
     [HttpPost]
     public async Task<IActionResult> MakeSale(CreateSaleRequest request)
     {
@@ -25,9 +31,9 @@ public class SalesController : ControllerBase
 
         if (!success)
         {
-            return BadRequest("Insufficient stock or product not found.");
+            return BadRequest("Invalid quantity, insufficient stock, or product not found.");
         }
 
-        return Ok("Sale recorded successfully.");
+        return Ok(new { message = "Sale recorded successfully." });
     }
 }
