@@ -1,43 +1,46 @@
 # StockAlert
 
-StockAlert is a full-stack inventory monitoring and reconciliation platform built for businesses that need a clearer view of stock levels, sales activity, low-stock risks, and changes coming from an external inventory or POS system such as SmartTrade.
+StockAlert is a full-stack inventory monitoring and reconciliation platform for businesses that need a clearer view of stock levels, sales activity, low-stock risks, supplier actions, and changes coming from an external inventory or POS system such as SmartTrade.
 
-The project combines an ASP.NET Core 8 API, SQL Server, Entity Framework Core, JWT authentication, background stock reconciliation, audit logging, and a Next.js management dashboard.
+The solution combines an ASP.NET Core 8 API, SQL Server, Entity Framework Core, ASP.NET Core Identity, JWT authentication, background stock reconciliation, audit logging, and a Next.js management dashboard.
 
-> **Project status:** MVP / active development. Core inventory functionality is in place, while production authentication, SmartTrade integration, reporting, and several frontend flows still need to be completed.
+> **Project status:** MVP / active development. Authentication, inventory, sales history, reporting foundations and audit viewing are implemented. The main remaining work is full inventory CRUD, richer reporting, production hardening and the real SmartTrade integration.
 
-## What StockAlert is designed to solve
+## Core capabilities
 
-Stock discrepancies are easy to miss when product quantities are updated in more than one system. StockAlert is intended to provide one operational dashboard where a business can:
+StockAlert is designed to provide one operational dashboard where a business can:
 
-- view current inventory and product values;
-- identify low-stock products before they run out;
+- view inventory, categories, suppliers, quantities and product values;
+- identify low-stock products;
+- contact suppliers for low-stock products when supplier email is available;
 - record sales and reduce stock automatically;
-- reconcile local inventory with SmartTrade or another external stock source;
-- keep an audit trail of inventory changes;
-- export stock data for reporting;
-- monitor stock health from a web dashboard.
+- view sales history and total sales revenue;
+- export inventory to CSV;
+- review audit logs;
+- manually trigger external-stock reconciliation;
+- run scheduled reconciliation in the background;
+- integrate with SmartTrade through an external-service adapter.
 
 ## Current feature status
 
 | Feature | Status | Notes |
 | --- | --- | --- |
-| Product inventory | ✅ Implemented | Products, categories, suppliers, pricing and stock quantities are stored in SQL Server. |
-| Low-stock detection | ✅ Implemented | Products below 5 units are flagged as low stock. |
-| Product creation | ✅ API implemented | Product, category and supplier records can be created through the API. |
-| Sales recording | ✅ Implemented | Recording a sale reduces local stock and stores the sale value. |
-| Dashboard summary | ⚠️ Partial | Product count, inventory value, low-stock count and sales revenue work. Some dashboard fields are placeholders. |
-| CSV stock report | ✅ Implemented | Inventory can be exported as a CSV file. |
-| Audit logging | ⚠️ Partial | Entity changes are logged, but the authenticated user is not yet attached to every audit entry. |
-| JWT authentication | ⚠️ Partial | Login/register and JWT generation exist, but the service registration and frontend auth flow still need cleanup. |
-| SmartTrade integration | 🚧 Scaffolded | Adapter and background sync worker exist, but the SmartTrade adapter currently returns no external products. |
-| Automatic reconciliation | 🚧 Scaffolded | Worker runs every 30 minutes and can reconcile discrepancies once the external adapter is connected. |
-| Reports UI | 🚧 Not completed | The sidebar links to a reports page that has not been created yet. |
-| Supplier reorder action | 🚧 Partial | Supplier email exists in the domain model, but it is not currently included in the product DTO returned to the frontend. |
+| Product inventory | ✅ Implemented | Inventory, categories, suppliers, pricing and quantities are stored in SQL Server. |
+| Product details API | ✅ Implemented | Individual products can be retrieved by ID. |
+| Product creation | ✅ API implemented | Product, category and supplier data can be created through the API. |
+| Low-stock detection | ✅ Implemented | Products below 5 units are flagged. |
+| Supplier reorder action | ✅ Implemented | Supplier name/email now flow to the inventory UI. |
+| Sales recording | ✅ Implemented | Sales reduce stock and store transaction value/date. |
+| Sales history | ✅ Implemented | Protected API and Next.js sales screen are available. |
+| Dashboard summary | ⚠️ Partial | Product count, inventory value, low-stock count and sales revenue work. SmartTrade discrepancy metrics are pending. |
+| Reports UI | ✅ Basic | Report summary and inventory CSV download are available. |
+| CSV stock report | ✅ Implemented | Product/category/supplier/stock data can be exported. |
+| JWT authentication | ✅ MVP | Identity registration, JWT login, protected API routes and frontend route guarding are wired. |
+| Audit logging | ⚠️ Partial | Audit entries are generated and viewable, but authenticated-user attribution needs improvement. |
+| SmartTrade integration | 🚧 Scaffolded | Adapter and workers exist, but the adapter does not yet call the real SmartTrade API. |
+| Automatic reconciliation | 🚧 Scaffolded | Worker runs every 30 minutes and can reconcile once the external adapter is connected. |
 
 ## Architecture
-
-The backend uses a layered solution structure:
 
 ```text
 StockAlert-1/
@@ -45,7 +48,7 @@ StockAlert-1/
 ├── StockAlert.Application/     # DTOs, interfaces and validation
 ├── StockAlert.Domain/          # Core entities and domain models
 ├── StockAlert.Infrastructure/  # EF Core, SQL Server, services, migrations and sync worker
-├── stock-alert-web/            # Next.js web dashboard
+├── stock-alert-web/            # Next.js management dashboard
 └── StockAlert.sln
 ```
 
@@ -69,6 +72,19 @@ StockAlert-1/
 - Axios
 - Lucide React
 
+## Main frontend routes
+
+| Route | Purpose |
+| --- | --- |
+| `/login` | Sign in |
+| `/` | Dashboard |
+| `/inventory` | Inventory and low-stock supplier actions |
+| `/sales` | Sales history |
+| `/reports` | Reporting summary and CSV export |
+| `/audit` | Audit logs |
+
+Protected frontend routes require a non-expired JWT in the current MVP. API responses returning HTTP 401 clear the local token and return the user to `/login`.
+
 ## Domain model
 
 The current domain includes:
@@ -83,48 +99,47 @@ The current domain includes:
 
 ## API overview
 
+Authentication endpoints are public. Inventory, sales, dashboard, reports and audit endpoints require a JWT.
+
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
 | POST | `/api/auth/register` | Register a user |
 | POST | `/api/auth/login` | Authenticate and receive a JWT |
 | GET | `/api/products` | Get inventory |
+| GET | `/api/products/{id}` | Get one product |
 | POST | `/api/products` | Create a product |
-| POST | `/api/products/sync-smarttrade` | Trigger an authenticated SmartTrade sync |
-| GET | `/api/products/report/csv` | Download an inventory CSV report |
-| GET | `/api/dashboard/summary` | Get dashboard inventory/sales summary |
-| GET | `/api/sales` | Get sales history — currently needs a controller fix |
+| POST | `/api/products/sync-smarttrade` | Trigger SmartTrade reconciliation |
+| GET | `/api/products/report/csv` | Download inventory CSV |
+| GET | `/api/dashboard/summary` | Get dashboard summary |
+| GET | `/api/sales` | Get sales history |
 | POST | `/api/sales` | Record a sale |
-| GET | `/api/audit` | Get the latest audit logs (JWT required) |
+| GET | `/api/audit` | Get the latest audit logs |
 
 ## Local development
 
 ### Prerequisites
-
-Install:
 
 - .NET 8 SDK
 - SQL Server Express or SQL Server
 - Node.js 20+ and npm
 - EF Core CLI tools
 
-### 1. Clone the repository
+### Clone
 
 ```bash
 git clone https://github.com/tibz-dev/StockAlert-1.git
 cd StockAlert-1
 ```
 
-### 2. Configure the backend
+### Database
 
-The current development connection string expects SQL Server Express:
+The current development configuration expects SQL Server Express:
 
 ```text
 Server=.\SQLEXPRESS;Database=StockAlertDb;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=true
 ```
 
-For production, move connection strings, JWT keys, and external-service credentials into environment variables or a secure secret store.
-
-### 3. Restore and migrate the database
+Apply migrations:
 
 ```bash
 dotnet restore
@@ -134,21 +149,15 @@ dotnet ef database update \
   --startup-project StockAlert.API
 ```
 
-### 4. Run the API
+### Run the API
 
 ```bash
 dotnet run --project StockAlert.API
 ```
 
-The frontend currently defaults to:
-
-```text
-https://localhost:7035/api
-```
-
 Swagger is enabled in the Development environment.
 
-### 5. Run the frontend
+### Run the frontend
 
 ```bash
 cd stock-alert-web
@@ -161,7 +170,7 @@ Create `.env.local`:
 NEXT_PUBLIC_API_URL=https://localhost:7035/api
 ```
 
-Then run:
+Run:
 
 ```bash
 npm run dev
@@ -171,30 +180,42 @@ Open `http://localhost:3000`.
 
 ## SmartTrade integration
 
-The integration is intentionally separated behind `IExternalStockService`.
+External inventory integration is isolated behind `IExternalStockService`.
 
-`SmartTradeAdapter` is the infrastructure implementation and `StockSyncWorker` is the scheduled background process. The worker is already designed to run every 30 minutes, compare external quantities with local quantities, update mismatches, and create reconciliation audit entries.
+`SmartTradeAdapter` is the integration implementation and `StockSyncWorker` is the scheduled reconciliation process. The worker runs every 30 minutes, compares external and local quantities, updates mismatches and records reconciliation activity.
 
-The remaining work is to replace the placeholder adapter with the real SmartTrade API contract, authentication method, endpoints, mapping, retries, error handling, and sync-history persistence.
+At present, `SmartTradeAdapter.SyncFromExternalAsync()` is intentionally a placeholder and returns no products. Live SmartTrade connection status is therefore not presented as active in the frontend.
 
-## Known implementation gaps
+To complete the integration we still need:
 
-The following should be completed before calling StockAlert production-ready:
+- confirmed SmartTrade API documentation;
+- authentication/credential handling;
+- product/stock endpoints;
+- external-to-local mapping;
+- retry and timeout rules;
+- failed-sync handling;
+- sync-history persistence;
+- discrepancy metrics and reconciliation reporting.
 
-1. Fix the frontend route structure so `/login` is the login page and `/` is the authenticated dashboard.
-2. Add a proper frontend authentication guard and session/token handling.
-3. Register and configure ASP.NET Core Identity and `AuthService` consistently in dependency injection.
-4. Replace the placeholder SmartTrade adapter with the real integration.
-5. Fix `GET /api/sales` so it returns `GetAllSalesAsync()` instead of products.
-6. Build the missing `/reports` page.
-7. Return supplier contact information to the inventory UI where required.
-8. Replace placeholder dashboard discrepancy/sync information with real data.
-9. Associate audit entries with the authenticated user instead of the hard-coded `System` value.
-10. Add product edit/delete, stock adjustments, pagination, searching and filtering.
-11. Add validation, global exception handling and production-safe CORS.
-12. Add automated backend/frontend tests and CI.
-13. Move secrets out of committed configuration before deployment.
-14. Add deployment configuration for the API, database and Next.js frontend.
+## Remaining work
+
+Before StockAlert is production-ready, the major items are:
+
+1. Add full product CRUD: edit, delete and product-management forms.
+2. Add manual stock adjustments with reasons and audit history.
+3. Add supplier-management screens.
+4. Add a sale-entry/POS-style screen, not only sales history.
+5. Add search, filters, sorting and pagination to inventory/sales/audit.
+6. Make low-stock thresholds configurable by product/business.
+7. Replace placeholder SmartTrade integration with the real API.
+8. Persist real sync history and discrepancy counts.
+9. Attribute audit entries to the authenticated user and avoid logging sensitive Identity values.
+10. Add richer reports, date filtering and PDF exports.
+11. Add role-based access control.
+12. Add global exception handling, structured logging and production-safe CORS.
+13. Move all production secrets to environment variables/secret storage.
+14. Add automated backend/frontend tests and CI/CD.
+15. Add production deployment configuration and monitoring.
 
 ## Target production flow
 
@@ -226,41 +247,41 @@ SQL Server   Audit Logs
 
 ## Roadmap
 
-The immediate goal is to turn the current MVP into a complete business-ready inventory monitoring system.
+**Phase 1 — MVP stabilisation**
+- ✅ authentication and protected routes;
+- ✅ correct dashboard/login routing;
+- ✅ sales history;
+- ✅ supplier data contract;
+- ✅ initial reports page;
+- 🚧 audit-user attribution and validation cleanup.
 
-**Phase 1 — Stabilise the MVP**
-- fix authentication and frontend routing;
-- fix sales history;
-- complete product/supplier data contracts;
-- complete dashboard data;
-- add the reports page.
-
-**Phase 2 — Complete inventory operations**
+**Phase 2 — Inventory operations**
 - product CRUD;
-- manual stock adjustments;
+- stock adjustments;
 - supplier management;
-- sales history;
-- filters and search;
+- sale-entry workflow;
+- search/filter/pagination;
 - configurable low-stock thresholds.
 
-**Phase 3 — SmartTrade integration**
+**Phase 3 — SmartTrade**
 - real API authentication;
-- stock import and reconciliation;
-- scheduled sync;
+- product/stock sync;
+- reconciliation;
 - failed-sync handling;
-- sync history and discrepancy dashboard.
+- sync history;
+- discrepancy dashboard.
 
 **Phase 4 — Production readiness**
-- role-based access;
+- roles/permissions;
 - notifications;
 - automated tests;
 - CI/CD;
 - secure configuration;
 - monitoring and deployment.
 
-## Security note
+## Security
 
-The repository currently contains development-oriented configuration. Do not reuse the committed JWT key or local database configuration in production. Production secrets must be supplied through environment variables, user secrets, or a managed secret store.
+The repository still contains development-oriented configuration. Do not reuse the committed JWT key or local database configuration in production. Production secrets must be supplied through environment variables, .NET user secrets during local development, or a managed secret store.
 
 ## License
 
@@ -268,4 +289,4 @@ No license has been added yet.
 
 ---
 
-Built as an inventory visibility and reconciliation platform with ASP.NET Core, SQL Server and Next.js.
+Built as an inventory visibility, sales monitoring and reconciliation platform with ASP.NET Core, SQL Server and Next.js.
