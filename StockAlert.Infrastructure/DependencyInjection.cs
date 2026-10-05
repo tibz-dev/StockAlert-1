@@ -29,6 +29,7 @@ public static class DependencyInjection
         services.AddScoped<AuthService>();
         services.AddScoped<IProductService, ProductService>();
         services.AddScoped<IStockMovementService, StockMovementService>();
+        services.AddScoped<ISupplierService, SupplierService>();
 
         services.AddHttpClient<IExternalStockService, SmartTradeAdapter>(client =>
         {
