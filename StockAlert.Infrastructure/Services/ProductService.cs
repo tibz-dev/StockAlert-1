@@ -130,10 +130,14 @@ public class ProductService : IProductService
             .AsNoTracking()
             .AnyAsync(s => s.ProductId == id);
 
-        if (hasSalesHistory)
+        var hasStockHistory = await _context.StockAdjustments
+            .AsNoTracking()
+            .AnyAsync(adjustment => adjustment.ProductId == id);
+
+        if (hasSalesHistory || hasStockHistory)
         {
             throw new InvalidOperationException(
-                "Products with sales history cannot be deleted.");
+                "Products with sales or stock movement history cannot be deleted.");
         }
 
         _context.Products.Remove(product);
@@ -142,7 +146,10 @@ public class ProductService : IProductService
         return true;
     }
 
-    public async Task<bool> AdjustStockAsync(Guid id, AdjustStockRequest request)
+    public async Task<bool> AdjustStockAsync(
+        Guid id,
+        AdjustStockRequest request,
+        string performedBy)
     {
         if (request.QuantityChange == 0)
         {
@@ -173,17 +180,18 @@ public class ProductService : IProductService
 
         product.StockQuantity = newQuantity;
 
-        _context.AuditLogs.Add(new AuditLog
+        _context.StockAdjustments.Add(new StockAdjustment
         {
             Id = Guid.NewGuid(),
-            EntityName = nameof(Product),
-            Action = "StockAdjustment",
-            UserId = "System",
-            Timestamp = DateTime.UtcNow,
-            Changes =
-                $"{product.Name}: {previousQuantity} -> {newQuantity}. " +
-                $"Adjustment: {request.QuantityChange:+#;-#;0}. " +
-                $"Reason: {request.Reason.Trim()}"
+            ProductId = product.Id,
+            PreviousQuantity = previousQuantity,
+            QuantityChange = request.QuantityChange,
+            NewQuantity = newQuantity,
+            Reason = request.Reason.Trim(),
+            PerformedBy = string.IsNullOrWhiteSpace(performedBy)
+                ? "Unknown User"
+                : performedBy.Trim(),
+            CreatedAt = DateTime.UtcNow
         });
 
         await _context.SaveChangesAsync(default);
