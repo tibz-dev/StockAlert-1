@@ -2,14 +2,22 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, Package, History, LogOut, Settings, BarChart3 } from 'lucide-react';
-import { clsx } from 'clsx'; // Utility for conditional classes
+import {
+  BarChart3,
+  History,
+  LayoutDashboard,
+  LogOut,
+  Package,
+  ReceiptText,
+} from 'lucide-react';
+import { clsx } from 'clsx';
 
 const menuItems = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Inventory', href: '/inventory', icon: Package },
-  { name: 'Audit Logs', href: '/audit', icon: History },
+  { name: 'Sales', href: '/sales', icon: ReceiptText },
   { name: 'Reports', href: '/reports', icon: BarChart3 },
+  { name: 'Audit Logs', href: '/audit', icon: History },
 ];
 
 export default function Sidebar() {
@@ -17,33 +25,36 @@ export default function Sidebar() {
   const router = useRouter();
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    router.push('/login');
+    window.localStorage.removeItem('token');
+    router.replace('/login');
   };
 
-  // Don't show sidebar on login page
-  if (pathname === '/login') return null;
-
   return (
-    <div className="flex flex-col w-64 bg-slate-900 text-white h-screen sticky top-0">
+    <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col bg-slate-900 text-white">
       <div className="p-6">
-        <h2 className="text-2xl font-bold text-blue-400 flex items-center gap-2">
-          StockAlert <span className="text-xs bg-blue-900 text-blue-200 px-2 py-1 rounded">MVP</span>
+        <h2 className="flex items-center gap-2 text-2xl font-bold text-blue-400">
+          StockAlert
+          <span className="rounded bg-blue-900 px-2 py-1 text-xs font-semibold text-blue-200">
+            MVP
+          </span>
         </h2>
+        <p className="mt-2 text-xs text-slate-500">Inventory control & reconciliation</p>
       </div>
 
-      <nav className="flex-1 px-4 space-y-2">
+      <nav className="flex-1 space-y-2 px-4">
         {menuItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
-          
+
           return (
             <Link
               key={item.name}
               href={item.href}
               className={clsx(
-                "flex items-center gap-3 px-4 py-3 rounded-lg transition-colors",
-                isActive ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                'flex items-center gap-3 rounded-lg px-4 py-3 transition-colors',
+                isActive
+                  ? 'bg-blue-600 text-white'
+                  : 'text-slate-400 hover:bg-slate-800 hover:text-white',
               )}
             >
               <Icon size={20} />
@@ -53,15 +64,15 @@ export default function Sidebar() {
         })}
       </nav>
 
-      <div className="p-4 border-t border-slate-800">
-        <button 
+      <div className="border-t border-slate-800 p-4">
+        <button
           onClick={handleLogout}
-          className="flex items-center gap-3 px-4 py-3 w-full text-slate-400 hover:text-red-400 transition-colors"
+          className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-slate-400 transition-colors hover:bg-slate-800 hover:text-red-400"
         >
           <LogOut size={20} />
           Logout
         </button>
       </div>
-    </div>
+    </aside>
   );
 }
