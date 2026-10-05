@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { Boxes, Loader2, X } from 'lucide-react';
 import api from '@/lib/api';
 import type { Product } from '@/types/inventory';
