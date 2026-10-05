@@ -2,9 +2,9 @@
 
 The StockAlert web application is the Next.js management dashboard for the StockAlert inventory monitoring and reconciliation platform.
 
-It consumes the ASP.NET Core API in the repository root and is intended to provide authenticated access to inventory, low-stock alerts, dashboard metrics, audit logs, reports, and SmartTrade reconciliation controls.
+It consumes the ASP.NET Core API in the repository root and provides authenticated access to dashboard metrics, inventory, low-stock supplier actions, sales history, reports and audit logs.
 
-> **Status:** Active MVP development. The UI is partially implemented and the authentication/routing flow still needs to be corrected before production deployment.
+> **Status:** Active MVP development. Core routing and JWT route protection are in place. Product management, sale entry, richer reporting and SmartTrade integration remain under development.
 
 ## Stack
 
@@ -15,23 +15,26 @@ It consumes the ASP.NET Core API in the repository root and is intended to provi
 - Axios
 - Lucide React
 
-## Current pages
+## Routes
 
-- `/` — currently contains the login UI and needs to become the authenticated dashboard route.
-- `/login` — currently contains the dashboard UI and needs to become the login route.
-- `/inventory` — product inventory, low-stock status, and CSV export.
-- `/audit` — authenticated audit-log view.
-- `/reports` — referenced in the sidebar but not implemented yet.
+| Route | Purpose |
+| --- | --- |
+| `/login` | User sign in |
+| `/` | Inventory dashboard |
+| `/inventory` | Inventory and supplier reorder actions |
+| `/sales` | Sales history |
+| `/reports` | Summary reporting and inventory CSV export |
+| `/audit` | Audit history |
+
+The application shell checks the JWT before showing protected pages. API 401 responses clear the token and redirect back to login.
 
 ## API configuration
 
-The Axios client reads:
+Create `.env.local`:
 
 ```env
 NEXT_PUBLIC_API_URL=https://localhost:7035/api
 ```
-
-Create a `.env.local` file if the API is running on a different URL.
 
 ## Run locally
 
@@ -42,7 +45,7 @@ npm run dev
 
 Open `http://localhost:3000`.
 
-## Available scripts
+## Scripts
 
 ```bash
 npm run dev
@@ -53,17 +56,15 @@ npm run lint
 
 ## Frontend work still required
 
-- correct the login/dashboard routes;
-- add an authenticated route guard;
-- improve JWT storage/session handling;
-- build the reports page;
-- add sales screens;
-- add product create/edit/delete screens;
-- add supplier management;
-- connect supplier contact actions to API data;
-- replace placeholder integration-health values with live data;
-- add loading, empty and error states consistently;
-- add responsive/mobile navigation;
-- add automated tests.
+- product create/edit/delete UI;
+- supplier management;
+- sale-entry workflow;
+- inventory/sales/audit searching, filtering and pagination;
+- configurable low-stock thresholds;
+- richer reports and PDF export;
+- real SmartTrade health/sync data;
+- responsive mobile navigation;
+- stronger production session strategy;
+- automated frontend tests.
 
-See the repository-level `README.md` for the full architecture, API endpoints, backend setup, known gaps, and roadmap.
+See the repository-level `README.md` for backend setup, API endpoints, architecture and the full roadmap.
