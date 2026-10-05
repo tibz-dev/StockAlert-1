@@ -20,3 +20,15 @@ export interface ProductFormValues {
   supplierName: string;
   supplierEmail: string;
 }
+
+export interface StockMovement {
+  id: string;
+  productId: string;
+  productName: string;
+  previousQuantity: number;
+  quantityChange: number;
+  newQuantity: number;
+  reason: string;
+  performedBy: string;
+  createdAt: string;
+}
