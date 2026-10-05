@@ -1,7 +1,9 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using StockAlert.Application.Interfaces;
+using StockAlert.Domain.Entities;
 using StockAlert.Infrastructure.Persistence;
 using StockAlert.Infrastructure.Services;
 
@@ -17,12 +19,21 @@ public static class DependencyInjection
         services.AddScoped<IApplicationDbContext>(provider =>
             provider.GetRequiredService<ApplicationDbContext>());
 
+        services
+            .AddIdentityCore<ApplicationUser>(options =>
+            {
+                options.User.RequireUniqueEmail = true;
+            })
+            .AddEntityFrameworkStores<ApplicationDbContext>();
+
+        services.AddScoped<AuthService>();
         services.AddScoped<IProductService, ProductService>();
 
-        
         services.AddHttpClient<IExternalStockService, SmartTradeAdapter>(client =>
         {
-            client.BaseAddress = new Uri(configuration["ExternalServices:SmartTradeUrl"] ?? "https://api.smarttrade.com");
+            client.BaseAddress = new Uri(
+                configuration["ExternalServices:SmartTradeUrl"]
+                ?? "https://api.smarttrade.com");
         });
 
         return services;
