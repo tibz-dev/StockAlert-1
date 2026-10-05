@@ -24,11 +24,24 @@ public class ProductsController : ControllerBase
         return Ok(products);
     }
 
+    [HttpGet("{id:guid}")]
+    public async Task<IActionResult> GetById(Guid id)
+    {
+        var product = await _productService.GetProductByIdAsync(id);
+
+        if (product == null)
+        {
+            return NotFound();
+        }
+
+        return Ok(product);
+    }
+
     [HttpPost]
     public async Task<IActionResult> Create(CreateProductRequest request)
     {
         var id = await _productService.CreateProductAsync(request);
-        return CreatedAtAction(nameof(Get), new { id }, new { id });
+        return CreatedAtAction(nameof(GetById), new { id }, new { id });
     }
 
     [HttpPost("sync-smarttrade")]
