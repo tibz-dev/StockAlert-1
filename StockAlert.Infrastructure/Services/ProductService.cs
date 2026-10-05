@@ -89,7 +89,7 @@ public class ProductService : IProductService
         ValidateProductDetails(
             request.Name,
             request.Price,
-            stockQuantity: 0,
+            0,
             request.CategoryName,
             request.SupplierName);
 
