@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   BarChart3,
   History,
+  ListRestart,
   LayoutDashboard,
   LogOut,
   Package,
@@ -15,6 +16,7 @@ import { clsx } from 'clsx';
 const menuItems = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Inventory', href: '/inventory', icon: Package },
+  { name: 'Stock Movements', href: '/stock-movements', icon: ListRestart },
   { name: 'Sales', href: '/sales', icon: ReceiptText },
   { name: 'Reports', href: '/reports', icon: BarChart3 },
   { name: 'Audit Logs', href: '/audit', icon: History },
