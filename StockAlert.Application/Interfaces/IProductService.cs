@@ -9,7 +9,7 @@ public interface IProductService
     Task<Guid> CreateProductAsync(CreateProductRequest request);
     Task<bool> UpdateProductAsync(Guid id, UpdateProductRequest request);
     Task<bool> DeleteProductAsync(Guid id);
-    Task<bool> AdjustStockAsync(Guid id, AdjustStockRequest request);
+    Task<bool> AdjustStockAsync(Guid id, AdjustStockRequest request, string performedBy);
 
     Task<bool> RecordSaleAsync(CreateSaleRequest request);
     Task<IEnumerable<SaleDto>> GetAllSalesAsync();
