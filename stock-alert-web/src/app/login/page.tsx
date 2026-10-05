@@ -1,72 +1,108 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Loader2, Lock, Mail } from 'lucide-react';
 import api from '@/lib/api';
-import { Package, AlertTriangle, TrendingUp, RefreshCw, Loader2 } from 'lucide-react';
 
-export default function Dashboard() {
-  const [stats, setStats] = useState<any>(null);
-  const [isSyncing, setIsSyncing] = useState(false);
+export default function LoginPage() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const router = useRouter();
 
-  const loadData = async () => {
-    const res = await api.get('/dashboard/summary');
-    setStats(res.data);
+  useEffect(() => {
+    if (window.localStorage.getItem('token')) {
+      router.replace('/');
+    }
+  }, [router]);
+
+  const handleLogin = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await api.post('/auth/login', { email, password });
+      window.localStorage.setItem('token', response.data.token);
+      router.replace('/');
+    } catch {
+      setError('Login failed. Please check your email and password.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { loadData(); }, []);
-
-  const triggerSync = async () => {
-    setIsSyncing(true);
-    await api.post('/products/sync-smarttrade');
-    await loadData();
-    setIsSyncing(false);
-  };
-
-  if (!stats) return <div className="p-20 text-center"><Loader2 className="animate-spin inline" /> Loading...</div>;
-
   return (
-    <div className="p-8 max-w-7xl mx-auto">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Dashboard</h1>
-        <button 
-          onClick={triggerSync}
-          disabled={isSyncing}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg flex gap-2 items-center hover:bg-blue-700 disabled:bg-blue-400"
-        >
-          <RefreshCw className={isSyncing ? 'animate-spin' : ''} size={18} />
-          {isSyncing ? 'Syncing...' : 'Sync SmartTrade'}
-        </button>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <StatCard title="Inventory Value" value={`$${stats.totalInventoryValue}`} icon={<TrendingUp />} color="text-green-600" />
-        <StatCard title="Total Items" value={stats.totalProducts} icon={<Package />} color="text-blue-600" />
-        <StatCard title="Low Stock" value={stats.lowStockAlerts} icon={<AlertTriangle />} color="text-red-600" />
-      </div>
-
-      <div className="mt-8 bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-        <h3 className="font-bold mb-4 flex items-center gap-2">
-          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-          Integration Health
-        </h3>
-        <div className="text-sm text-gray-600 space-y-2">
-          <div className="flex justify-between border-b pb-2"><span>Source</span><span className="font-bold">SmartTrade API</span></div>
-          <div className="flex justify-between"><span>Last Sync</span><span className="font-medium">Success (Just now)</span></div>
+    <div className="flex min-h-screen items-center justify-center bg-slate-950 p-4">
+      <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl sm:p-10">
+        <div className="mb-8 text-center">
+          <div className="mb-3 text-sm font-semibold uppercase tracking-[0.25em] text-blue-600">
+            StockAlert
+          </div>
+          <h1 className="text-3xl font-bold text-gray-900">Welcome back</h1>
+          <p className="mt-2 text-sm text-gray-500">
+            Sign in to manage inventory, alerts and reconciliation.
+          </p>
         </div>
-      </div>
-    </div>
-  );
-}
 
-function StatCard({ title, value, icon, color }: any) {
-  return (
-    <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100">
-      <div className="flex items-center gap-4">
-        <div className={`p-3 rounded-lg bg-gray-50 ${color}`}>{icon}</div>
-        <div>
-          <p className="text-gray-500 text-sm">{title}</p>
-          <h2 className="text-2xl font-bold">{value}</h2>
-        </div>
+        <form className="space-y-5" onSubmit={handleLogin}>
+          {error && (
+            <div
+              role="alert"
+              className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+            >
+              {error}
+            </div>
+          )}
+
+          <div>
+            <label htmlFor="email" className="mb-2 block text-sm font-medium text-gray-700">
+              Email
+            </label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+              <input
+                id="email"
+                type="email"
+                autoComplete="email"
+                required
+                className="w-full rounded-lg border border-gray-300 p-2.5 pl-10 text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                placeholder="you@company.com"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="password" className="mb-2 block text-sm font-medium text-gray-700">
+              Password
+            </label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+              <input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                className="w-full rounded-lg border border-gray-300 p-2.5 pl-10 text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                placeholder="Enter your password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="flex w-full items-center justify-center rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-400"
+          >
+            {loading ? <Loader2 className="animate-spin" size={20} /> : 'Sign in'}
+          </button>
+        </form>
       </div>
     </div>
   );
