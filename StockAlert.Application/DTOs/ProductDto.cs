@@ -1,9 +1,3 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
 namespace StockAlert.Application.DTOs;
 
 public record ProductDto(
@@ -13,5 +7,7 @@ public record ProductDto(
     int StockQuantity,
     string CategoryName,
     bool IsLowStock,
-    string? ExternalId 
+    string SupplierName,
+    string? SupplierEmail,
+    string? ExternalId
 );
