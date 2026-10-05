@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Loader2, PackagePlus, Save, X } from 'lucide-react';
 import api from '@/lib/api';
 import type { Product, ProductFormValues } from '@/types/inventory';
+import type { Supplier } from '@/types/supplier';
 
 interface ProductFormModalProps {
   mode: 'create' | 'edit';
@@ -31,6 +32,20 @@ export default function ProductFormModal({
   const [form, setForm] = useState<ProductFormValues>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+
+  useEffect(() => {
+    const loadSuppliers = async () => {
+      try {
+        const response = await api.get<Supplier[]>('/suppliers');
+        setSuppliers(response.data);
+      } catch {
+        setSuppliers([]);
+      }
+    };
+
+    void loadSuppliers();
+  }, []);
 
   useEffect(() => {
     if (mode === 'edit' && product) {
@@ -196,11 +211,29 @@ export default function ProductFormModal({
             <Field label="Supplier">
               <input
                 required
+                list="supplier-options"
                 value={form.supplierName}
-                onChange={(event) => updateField('supplierName', event.target.value)}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  updateField('supplierName', value);
+
+                  const matchedSupplier = suppliers.find(
+                    (supplier) =>
+                      supplier.companyName.toLowerCase() === value.toLowerCase(),
+                  );
+
+                  if (matchedSupplier?.contactEmail) {
+                    updateField('supplierEmail', matchedSupplier.contactEmail);
+                  }
+                }}
                 className="input"
                 placeholder="Supplier company"
               />
+              <datalist id="supplier-options">
+                {suppliers.map((supplier) => (
+                  <option key={supplier.id} value={supplier.companyName} />
+                ))}
+              </datalist>
             </Field>
 
             <Field label="Supplier email">
