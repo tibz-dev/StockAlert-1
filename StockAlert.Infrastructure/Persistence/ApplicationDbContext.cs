@@ -14,7 +14,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<Supplier> Suppliers => Set<Supplier>();
     public DbSet<Sale> Sales => Set<Sale>();
-    public DbSet<AuditLog> AuditLogs => Set<AuditLog>(); // New Table
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<StockAdjustment> StockAdjustments => Set<StockAdjustment>();
     
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
@@ -29,7 +30,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
 
         foreach (var entry in ChangeTracker.Entries())
         {
-            if (entry.Entity is AuditLog || entry.State == EntityState.Detached || entry.State == EntityState.Unchanged)
+            if (entry.Entity is AuditLog || entry.Entity is StockAdjustment || entry.State == EntityState.Detached || entry.State == EntityState.Unchanged)
                 continue;
 
             var auditEntry = new AuditLog
@@ -52,6 +53,23 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
     {
         modelBuilder.Entity<Product>().Property(p => p.Price).HasPrecision(18, 2);
         modelBuilder.Entity<Sale>().Property(s => s.TotalPrice).HasPrecision(18, 2);
+
+        modelBuilder.Entity<StockAdjustment>(entity =>
+        {
+            entity.Property(adjustment => adjustment.Reason)
+                .HasMaxLength(500);
+
+            entity.Property(adjustment => adjustment.PerformedBy)
+                .HasMaxLength(256);
+
+            entity.HasIndex(adjustment => adjustment.CreatedAt);
+
+            entity.HasOne(adjustment => adjustment.Product)
+                .WithMany(product => product.StockAdjustments)
+                .HasForeignKey(adjustment => adjustment.ProductId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
         base.OnModelCreating(modelBuilder);
     }
 }
