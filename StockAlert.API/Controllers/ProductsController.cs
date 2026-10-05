@@ -1,12 +1,11 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using StockAlert.Application.DTOs;
 using StockAlert.Application.Interfaces;
-using StockAlert.Domain.Entities;
 
 namespace StockAlert.API.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class ProductsController : ControllerBase
@@ -29,21 +28,26 @@ public class ProductsController : ControllerBase
     public async Task<IActionResult> Create(CreateProductRequest request)
     {
         var id = await _productService.CreateProductAsync(request);
-        return CreatedAtAction(nameof(Get), new { id }, id);
+        return CreatedAtAction(nameof(Get), new { id }, new { id });
     }
 
-    [Authorize] // Only logged-in users can sync
     [HttpPost("sync-smarttrade")]
     public async Task<IActionResult> SyncSmartTrade()
     {
         var updatedItems = await _productService.SyncWithSmartTradeAsync();
-        return Ok(new { message = $"Sync complete. {updatedItems} products updated.", timestamp = DateTime.UtcNow });
+
+        return Ok(new
+        {
+            message = $"Sync complete. {updatedItems} products updated.",
+            timestamp = DateTime.UtcNow
+        });
     }
+
     [HttpGet("report/csv")]
     public async Task<IActionResult> DownloadReport()
     {
         var fileBytes = await _productService.GenerateStockReportAsync();
-        var fileName = $"StockReport_{DateTime.Now:yyyyMMdd}.csv";
+        var fileName = $"StockReport_{DateTime.UtcNow:yyyyMMdd}.csv";
 
         return File(fileBytes, "text/csv", fileName);
     }
