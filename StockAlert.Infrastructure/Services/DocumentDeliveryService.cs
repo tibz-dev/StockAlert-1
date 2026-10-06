@@ -38,6 +38,7 @@ public class DocumentDeliveryService : IDocumentDeliveryService
         if (string.IsNullOrWhiteSpace(sale.ReceiptNumber))
         {
             sale.ReceiptNumber = GenerateReceiptNumber();
+            await _context.SaveChangesAsync(default);
         }
 
         var receiptSales = await _context.Sales
