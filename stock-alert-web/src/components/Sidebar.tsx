@@ -4,12 +4,14 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   BarChart3,
+  FileText,
   History,
   ListRestart,
   LayoutDashboard,
   LogOut,
   Package,
   ReceiptText,
+  Settings2,
   Truck,
 } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -19,8 +21,10 @@ const menuItems = [
   { name: 'Inventory', href: '/inventory', icon: Package },
   { name: 'Stock Movements', href: '/stock-movements', icon: ListRestart },
   { name: 'Suppliers', href: '/suppliers', icon: Truck },
+  { name: 'Quotes', href: '/quotes', icon: FileText },
   { name: 'Sales', href: '/sales', icon: ReceiptText },
   { name: 'Reports', href: '/reports', icon: BarChart3 },
+  { name: 'Business Settings', href: '/settings/business', icon: Settings2 },
   { name: 'Audit Logs', href: '/audit', icon: History },
 ];
 
