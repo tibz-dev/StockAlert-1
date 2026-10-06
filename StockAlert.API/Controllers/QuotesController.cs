@@ -106,4 +106,21 @@ public class QuotesController : ControllerBase
             return Conflict(new { message = ex.Message });
         }
     }
+
+    [HttpPost("{id:guid}/convert-to-sale")]
+    public async Task<IActionResult> ConvertToSale(Guid id)
+    {
+        try
+        {
+            var result = await _quoteService.ConvertToSaleAsync(id);
+
+            return result == null
+                ? NotFound(new { message = "Quote not found." })
+                : Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+    }
 }
