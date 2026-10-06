@@ -461,7 +461,7 @@ function ReceiptDeliveryModal({
       );
 
       if (response.data.actionUrl) {
-        window.open(response.data.actionUrl, '_blank', 'noopener,noreferrer');
+        window.location.href = response.data.actionUrl;
       }
     } catch {
       setError(
