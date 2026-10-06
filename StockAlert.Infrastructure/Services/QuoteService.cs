@@ -242,6 +242,103 @@ public class QuoteService : IQuoteService
         return ToDto(quote, reservedByProduct);
     }
 
+    public async Task<QuoteConversionDto?> ConvertToSaleAsync(Guid id)
+    {
+        var quote = await _context.Quotes
+            .Include(item => item.Customer)
+            .Include(item => item.Items)
+                .ThenInclude(item => item.Product)
+            .FirstOrDefaultAsync(item => item.Id == id);
+
+        if (quote == null)
+        {
+            return null;
+        }
+
+        if (quote.Status != QuoteStatus.Accepted)
+        {
+            throw new InvalidOperationException(
+                "Only accepted quotes can be converted to a sale.");
+        }
+
+        if (quote.Customer == null)
+        {
+            throw new InvalidOperationException(
+                "Quote customer details were not loaded.");
+        }
+
+        if (quote.Items.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "The quote has no items to convert.");
+        }
+
+        foreach (var item in quote.Items)
+        {
+            if (item.Product == null)
+            {
+                throw new InvalidOperationException(
+                    "A quoted product no longer exists.");
+            }
+
+            if (item.Product.StockQuantity < item.Quantity)
+            {
+                throw new InvalidOperationException(
+                    $"{item.Product.Name} no longer has enough physical stock to complete this quote.");
+            }
+        }
+
+        var receiptNumber = GenerateReceiptNumber();
+        var sales = new List<Sale>();
+
+        foreach (var item in quote.Items)
+        {
+            var product = item.Product!;
+            product.StockQuantity -= item.Quantity;
+
+            var sale = new Sale
+            {
+                Id = Guid.NewGuid(),
+                ProductId = product.Id,
+                Product = product,
+                CustomerId = quote.CustomerId,
+                Customer = quote.Customer,
+                ReceiptNumber = receiptNumber,
+                Quantity = item.Quantity,
+                SaleDate = DateTime.UtcNow,
+                TotalPrice = item.LineTotal
+            };
+
+            _context.Sales.Add(sale);
+            sales.Add(sale);
+        }
+
+        quote.Status = QuoteStatus.Converted;
+        quote.ConvertedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync(default);
+
+        var customer = quote.Customer;
+
+        return new QuoteConversionDto(
+            quote.Id,
+            quote.QuoteNumber,
+            sales[0].Id,
+            receiptNumber,
+            quote.Total,
+            new CustomerDto(
+                customer.Id,
+                customer.FullName,
+                customer.CompanyName,
+                customer.Email,
+                customer.PhoneNumber,
+                customer.WhatsAppNumber,
+                customer.HasWhatsApp,
+                customer.Address
+            )
+        );
+    }
+
     private async Task<Customer> ResolveCustomerAsync(
         CreateQuoteRequest request)
     {
@@ -379,6 +476,12 @@ public class QuoteService : IQuoteService
                 );
             }).ToList()
         );
+    }
+
+    private static string GenerateReceiptNumber()
+    {
+        return $"RCPT-{DateTime.UtcNow:yyyyMMdd}-" +
+               Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
     }
 
     private static string GenerateQuoteNumber()
