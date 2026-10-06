@@ -49,3 +49,12 @@ export interface PreparedDelivery {
   status: string;
   actionUrl: string;
 }
+
+export interface QuoteConversion {
+  quoteId: string;
+  quoteNumber: string;
+  primarySaleId: string;
+  receiptNumber: string;
+  total: number;
+  customer: Customer;
+}
