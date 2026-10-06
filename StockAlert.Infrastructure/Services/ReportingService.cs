@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using StockAlert.Application.DTOs;
 using StockAlert.Application.Interfaces;
 using StockAlert.Domain.Entities;
+using StockAlert.Domain.Enums;
 
 namespace StockAlert.Infrastructure.Services;
 
@@ -35,18 +36,43 @@ public class ReportingService : IReportingService
             fromDate,
             toDate);
 
-        var totalProducts = await _context.Products
+        var currentProducts = await _context.Products
             .AsNoTracking()
-            .CountAsync();
+            .Select(product => new
+            {
+                product.Id,
+                product.StockQuantity
+            })
+            .ToListAsync();
+
+        var totalProducts = currentProducts.Count;
 
         var totalInventoryValue = await _context.Products
             .AsNoTracking()
             .Select(product => (decimal?)(product.Price * product.StockQuantity))
             .SumAsync() ?? 0m;
 
-        var lowStockProducts = await _context.Products
+        var reservedByProduct = await _context.QuoteItems
             .AsNoTracking()
-            .CountAsync(product => product.StockQuantity < LowStockThreshold);
+            .Where(item =>
+                item.Quote != null
+                && item.Quote.Status == QuoteStatus.Accepted)
+            .GroupBy(item => item.ProductId)
+            .Select(group => new
+            {
+                ProductId = group.Key,
+                Quantity = group.Sum(item => item.Quantity)
+            })
+            .ToDictionaryAsync(
+                item => item.ProductId,
+                item => item.Quantity);
+
+        var lowStockProducts = currentProducts.Count(product =>
+            Math.Max(
+                0,
+                product.StockQuantity
+                - reservedByProduct.GetValueOrDefault(product.Id))
+            < LowStockThreshold);
 
         var totalSuppliers = await _context.Suppliers
             .AsNoTracking()
