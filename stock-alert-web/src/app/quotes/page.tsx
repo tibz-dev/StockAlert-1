@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   CheckCircle2,
   ChevronDown,
@@ -218,9 +218,8 @@ export default function QuotesPage() {
                   const isBusy = busyId === quote.id;
 
                   return (
-                    <>
+                    <Fragment key={quote.id}>
                       <tr
-                        key={quote.id}
                         className="border-b border-gray-100 align-top hover:bg-gray-50"
                       >
                         <td className="p-4">
@@ -336,7 +335,7 @@ export default function QuotesPage() {
                           </td>
                         </tr>
                       )}
-                    </>
+                    </Fragment>
                   );
                 })}
 
