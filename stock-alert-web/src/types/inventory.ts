@@ -9,6 +9,10 @@ export interface Product {
   supplierName: string;
   supplierEmail: string | null;
   externalId: string | null;
+  quotedQuantity: number;
+  reservedQuantity: number;
+  availableQuantity: number;
+  soldQuantity: number;
 }
 
 export interface ProductFormValues {
