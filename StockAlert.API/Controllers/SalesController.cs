@@ -11,10 +11,14 @@ namespace StockAlert.API.Controllers;
 public class SalesController : ControllerBase
 {
     private readonly IProductService _productService;
+    private readonly IDocumentDeliveryService _deliveryService;
 
-    public SalesController(IProductService productService)
+    public SalesController(
+        IProductService productService,
+        IDocumentDeliveryService deliveryService)
     {
         _productService = productService;
+        _deliveryService = deliveryService;
     }
 
     [HttpGet]
@@ -27,13 +31,47 @@ public class SalesController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> MakeSale(CreateSaleRequest request)
     {
-        var success = await _productService.RecordSaleAsync(request);
-
-        if (!success)
+        try
         {
-            return BadRequest("Invalid quantity, insufficient stock, or product not found.");
-        }
+            var receipt = await _productService.RecordSaleAsync(request);
 
-        return Ok(new { message = "Sale recorded successfully." });
+            if (receipt == null)
+            {
+                return BadRequest(new
+                {
+                    message = "Invalid quantity or product not found."
+                });
+            }
+
+            return Ok(receipt);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("{id:guid}/receipt/delivery")]
+    public async Task<IActionResult> PrepareReceiptDelivery(
+        Guid id,
+        PrepareDeliveryRequest request)
+    {
+        try
+        {
+            return Ok(
+                await _deliveryService.PrepareReceiptAsync(id, request));
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
     }
 }
