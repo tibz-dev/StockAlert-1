@@ -10,7 +10,6 @@ import {
   Mail,
   MessageCircle,
   Plus,
-  Send,
   ShoppingCart,
   Smartphone,
   X,
@@ -64,7 +63,6 @@ export default function QuotesPage() {
 
     return {
       active: quotes.filter((quote) => activeStatuses.has(quote.status)).length,
-      accepted: quotes.filter((quote) => quote.status === 'Accepted').length,
       pipelineValue: quotes
         .filter((quote) => activeStatuses.has(quote.status))
         .reduce((sum, quote) => sum + quote.total, 0),
