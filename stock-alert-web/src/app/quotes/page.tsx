@@ -11,13 +11,14 @@ import {
   MessageCircle,
   Plus,
   Send,
+  ShoppingCart,
   Smartphone,
   X,
   XCircle,
 } from 'lucide-react';
 import api from '@/lib/api';
 import type { Product } from '@/types/inventory';
-import type { PreparedDelivery, Quote } from '@/types/quote';
+import type { PreparedDelivery, Quote, QuoteConversion } from '@/types/quote';
 
 interface QuoteFormItem {
   productId: string;
@@ -34,6 +35,8 @@ export default function QuotesPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [convertedReceipt, setConvertedReceipt] =
+    useState<QuoteConversion | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -103,7 +106,7 @@ export default function QuotesPage() {
       await load();
 
       if (response.data.actionUrl) {
-        window.open(response.data.actionUrl, '_blank', 'noopener,noreferrer');
+        window.location.href = response.data.actionUrl;
       }
 
       setSuccess(
@@ -113,6 +116,30 @@ export default function QuotesPage() {
     } catch {
       setError(
         `Unable to prepare ${channel} delivery. Check the customer's contact details.`,
+      );
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const convertToSale = async (quote: Quote) => {
+    try {
+      setBusyId(quote.id);
+      setError('');
+
+      const response = await api.post<QuoteConversion>(
+        `/quotes/${quote.id}/convert-to-sale`,
+      );
+
+      setConvertedReceipt(response.data);
+      await load();
+      setSuccess(
+        `Quote ${quote.quoteNumber} converted to receipt ${response.data.receiptNumber}.`,
+      );
+      window.setTimeout(() => setSuccess(''), 4000);
+    } catch {
+      setError(
+        'Unable to convert this quote to a sale. It must be accepted and have enough physical stock.',
       );
     } finally {
       setBusyId(null);
@@ -280,6 +307,15 @@ export default function QuotesPage() {
                                 />
                               )}
 
+                            {quote.status === 'Accepted' && (
+                              <ActionButton
+                                disabled={isBusy}
+                                onClick={() => void convertToSale(quote)}
+                                icon={<ShoppingCart size={13} />}
+                                label="Convert Sale"
+                              />
+                            )}
+
                             {quote.status !== 'Converted' &&
                               quote.status !== 'Cancelled' &&
                               quote.status !== 'Rejected' && (
@@ -319,6 +355,13 @@ export default function QuotesPage() {
         </div>
       </div>
 
+      {convertedReceipt && (
+        <ConvertedReceiptModal
+          conversion={convertedReceipt}
+          onClose={() => setConvertedReceipt(null)}
+        />
+      )}
+
       {creating && (
         <CreateQuoteModal
           products={products}
@@ -331,6 +374,102 @@ export default function QuotesPage() {
           }}
         />
       )}
+    </div>
+  );
+}
+
+function ConvertedReceiptModal({
+  conversion,
+  onClose,
+}: {
+  conversion: QuoteConversion;
+  onClose: () => void;
+}) {
+  const [busy, setBusy] = useState('');
+  const [error, setError] = useState('');
+
+  const prepare = async (channel: 'Email' | 'Sms' | 'WhatsApp') => {
+    try {
+      setBusy(channel);
+      setError('');
+
+      const response = await api.post<PreparedDelivery>(
+        `/sales/${conversion.primarySaleId}/receipt/delivery`,
+        { channel },
+      );
+
+      if (response.data.actionUrl) {
+        window.location.href = response.data.actionUrl;
+      }
+    } catch {
+      setError(
+        `Unable to prepare ${channel} receipt. Check the customer contact details.`,
+      );
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const customer = conversion.customer;
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-start justify-between border-b border-gray-200 px-6 py-5">
+          <div>
+            <p className="text-sm font-medium text-green-600">Quote converted</p>
+            <h2 className="mt-1 text-xl font-bold text-gray-900">
+              Send sale receipt?
+            </h2>
+            <p className="mt-1 text-sm text-gray-500">
+              {conversion.receiptNumber} · {customer.fullName}
+            </p>
+          </div>
+          <button onClick={onClose} className="rounded-lg p-2 text-gray-400 hover:bg-gray-100">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="p-6">
+          {error && (
+            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            <ActionButton
+              label="Email"
+              icon={<Mail size={16} />}
+              disabled={!customer.email || Boolean(busy)}
+              onClick={() => void prepare('Email')}
+            />
+            <ActionButton
+              label="SMS"
+              icon={<Smartphone size={16} />}
+              disabled={!customer.phoneNumber || Boolean(busy)}
+              onClick={() => void prepare('Sms')}
+            />
+            <ActionButton
+              label="WhatsApp"
+              icon={<MessageCircle size={16} />}
+              disabled={
+                (!customer.whatsAppNumber &&
+                  !(customer.hasWhatsApp && customer.phoneNumber)) ||
+                Boolean(busy)
+              }
+              onClick={() => void prepare('WhatsApp')}
+            />
+          </div>
+
+          <button
+            onClick={onClose}
+            className="mt-5 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700"
+          >
+            Done
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
