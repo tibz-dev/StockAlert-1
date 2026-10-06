@@ -16,4 +16,5 @@ public class Product
     public string? ExternalSource { get; set; } // e.g., "SmartTrade"
 
     public ICollection<StockAdjustment> StockAdjustments { get; set; } = new List<StockAdjustment>();
+    public ICollection<QuoteItem> QuoteItems { get; set; } = new List<QuoteItem>();
 }
