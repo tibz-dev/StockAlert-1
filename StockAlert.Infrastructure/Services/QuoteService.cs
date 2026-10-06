@@ -329,7 +329,7 @@ public class QuoteService : IQuoteService
                 "Quote customer was not loaded.");
 
         var effectiveStatus =
-            quote.Status is QuoteStatus.Draft or QuoteStatus.Sent
+            (quote.Status is QuoteStatus.Draft or QuoteStatus.Sent)
             && quote.ValidUntil.Date < DateTime.UtcNow.Date
                 ? QuoteStatus.Expired
                 : quote.Status;
