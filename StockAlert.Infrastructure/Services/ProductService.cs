@@ -305,9 +305,36 @@ public class ProductService : IProductService
             .Select(product => (decimal?)(product.Price * product.StockQuantity))
             .SumAsync() ?? 0m;
 
-        var lowStockAlerts = await _context.Products
+        var dashboardProducts = await _context.Products
             .AsNoTracking()
-            .CountAsync(product => product.StockQuantity < LowStockThreshold);
+            .Select(product => new
+            {
+                product.Id,
+                product.SupplierId,
+                product.StockQuantity
+            })
+            .ToListAsync();
+
+        var dashboardMetrics = await GetProductMetricsAsync(
+            dashboardProducts.Select(product => product.Id));
+
+        var lowStockProducts = dashboardProducts
+            .Where(product =>
+            {
+                var reserved = dashboardMetrics
+                    .GetValueOrDefault(
+                        product.Id,
+                        ProductMetrics.Empty)
+                    .ReservedQuantity;
+
+                return Math.Max(
+                    0,
+                    product.StockQuantity - reserved)
+                    < LowStockThreshold;
+            })
+            .ToList();
+
+        var lowStockAlerts = lowStockProducts.Count;
 
         var totalSalesRevenue = await _context.Sales
             .AsNoTracking()
@@ -384,27 +411,28 @@ public class ProductService : IProductService
             ))
             .ToListAsync();
 
-        var lowStockSupplierAlerts = await _context.Products
-            .AsNoTracking()
-            .Where(product => product.StockQuantity < LowStockThreshold)
+        var supplierLowStockCounts = lowStockProducts
             .GroupBy(product => product.SupplierId)
-            .Select(group => new
-            {
-                SupplierId = group.Key,
-                LowStockProductCount = group.Count()
-            })
-            .OrderByDescending(item => item.LowStockProductCount)
-            .Join(
-                _context.Suppliers.AsNoTracking(),
-                alert => alert.SupplierId,
-                supplier => supplier.Id,
-                (alert, supplier) => new LowStockSupplierAlertDto(
-                    supplier.Id,
-                    supplier.CompanyName,
-                    supplier.ContactEmail,
-                    alert.LowStockProductCount
-                ))
+            .ToDictionary(
+                group => group.Key,
+                group => group.Count());
+
+        var supplierIds = supplierLowStockCounts.Keys.ToList();
+
+        var supplierLowStockDetails = await _context.Suppliers
+            .AsNoTracking()
+            .Where(supplier => supplierIds.Contains(supplier.Id))
             .ToListAsync();
+
+        var lowStockSupplierAlerts = supplierLowStockDetails
+            .Select(supplier => new LowStockSupplierAlertDto(
+                supplier.Id,
+                supplier.CompanyName,
+                supplier.ContactEmail,
+                supplierLowStockCounts.GetValueOrDefault(supplier.Id)
+            ))
+            .OrderByDescending(alert => alert.LowStockProductCount)
+            .ToList();
 
         return new DashboardDto(
             TotalProducts: totalProducts,
