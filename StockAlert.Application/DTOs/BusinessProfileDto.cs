@@ -1,0 +1,33 @@
+namespace StockAlert.Application.DTOs;
+
+public record BusinessProfileDto(
+    Guid Id,
+    string BusinessName,
+    string? TradingName,
+    string? RegistrationNumber,
+    string? VatNumber,
+    bool IsVatRegistered,
+    decimal DefaultVatRate,
+    string? Email,
+    string? PhoneNumber,
+    string? WhatsAppNumber,
+    string? Website,
+    string? LogoUrl,
+    string? AddressLine1,
+    string? AddressLine2,
+    string? City,
+    string? Province,
+    string? PostalCode,
+    string Country,
+    string? BranchName,
+    string? BranchNumber,
+    string? BankName,
+    string? BankAccountName,
+    string? BankAccountNumber,
+    string? BankBranchCode,
+    string? BankAccountType,
+    string CurrencyCode,
+    int QuoteValidityDays,
+    string? ReceiptFooter,
+    DateTime UpdatedAt
+);
