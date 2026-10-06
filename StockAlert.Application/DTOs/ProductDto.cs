@@ -10,5 +10,9 @@ public record ProductDto(
     bool IsLowStock,
     string SupplierName,
     string? SupplierEmail,
-    string? ExternalId
+    string? ExternalId,
+    int QuotedQuantity,
+    int ReservedQuantity,
+    int AvailableQuantity,
+    int SoldQuantity
 );
