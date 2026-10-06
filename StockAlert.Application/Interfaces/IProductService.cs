@@ -11,7 +11,7 @@ public interface IProductService
     Task<bool> DeleteProductAsync(Guid id);
     Task<bool> AdjustStockAsync(Guid id, AdjustStockRequest request, string performedBy);
 
-    Task<bool> RecordSaleAsync(CreateSaleRequest request);
+    Task<SaleReceiptDto?> RecordSaleAsync(CreateSaleRequest request);
     Task<IEnumerable<SaleDto>> GetAllSalesAsync();
 
     Task<DashboardDto> GetDashboardStatsAsync();
