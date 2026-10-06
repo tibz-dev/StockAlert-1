@@ -459,7 +459,7 @@ public class ProductService : IProductService
         var builder = new System.Text.StringBuilder();
 
         builder.AppendLine(
-            "Product Name,Description,Category,Supplier,Price,Stock Quantity,Low Stock Alert");
+            "Product Name,Description,Category,Supplier,Price,On Hand,Under Quote,Reserved,Available,Sold,Low Stock Alert");
 
         foreach (var product in products)
         {
@@ -470,6 +470,10 @@ public class ProductService : IProductService
                 $"{EscapeCsv(product.SupplierName)}," +
                 $"{product.Price}," +
                 $"{product.StockQuantity}," +
+                $"{product.QuotedQuantity}," +
+                $"{product.ReservedQuantity}," +
+                $"{product.AvailableQuantity}," +
+                $"{product.SoldQuantity}," +
                 $"{product.IsLowStock}");
         }
 
