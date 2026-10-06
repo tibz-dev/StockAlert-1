@@ -179,6 +179,13 @@ export default function BusinessSettingsPage() {
                 value={profile.branchNumber ?? ''}
                 onChange={(value) => update('branchNumber', value || null)}
               />
+              <div className="md:col-span-2">
+                <TextField
+                  label="Logo URL"
+                  value={profile.logoUrl ?? ''}
+                  onChange={(value) => update('logoUrl', value || null)}
+                />
+              </div>
             </div>
           </Section>
 
