@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using StockAlert.Application.Interfaces;
 using StockAlert.Domain.Entities;
+using StockAlert.Domain.Enums;
 using System.Security.Claims;
 using System.Text.Json;
 
@@ -25,6 +26,11 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
     public DbSet<Sale> Sales => Set<Sale>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<StockAdjustment> StockAdjustments => Set<StockAdjustment>();
+    public DbSet<BusinessProfile> BusinessProfiles => Set<BusinessProfile>();
+    public DbSet<Customer> Customers => Set<Customer>();
+    public DbSet<Quote> Quotes => Set<Quote>();
+    public DbSet<QuoteItem> QuoteItems => Set<QuoteItem>();
+    public DbSet<DeliveryLog> DeliveryLogs => Set<DeliveryLog>();
     
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
@@ -42,6 +48,9 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
             if (entry.Entity is AuditLog
                 || entry.Entity is StockAdjustment
                 || entry.Entity is ApplicationUser
+                || entry.Entity is BusinessProfile
+                || entry.Entity is Customer
+                || entry.Entity is DeliveryLog
                 || IsIdentityEntity(entry.Entity.GetType())
                 || entry.State == EntityState.Detached
                 || entry.State == EntityState.Unchanged)
@@ -84,7 +93,89 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Product>().Property(p => p.Price).HasPrecision(18, 2);
-        modelBuilder.Entity<Sale>().Property(s => s.TotalPrice).HasPrecision(18, 2);
+        modelBuilder.Entity<Sale>(entity =>
+        {
+            entity.Property(sale => sale.TotalPrice).HasPrecision(18, 2);
+            entity.HasIndex(sale => sale.ReceiptNumber);
+
+            entity.HasOne(sale => sale.Customer)
+                .WithMany(customer => customer.Sales)
+                .HasForeignKey(sale => sale.CustomerId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<BusinessProfile>(entity =>
+        {
+            entity.Property(profile => profile.DefaultVatRate)
+                .HasPrecision(5, 2);
+        });
+
+        modelBuilder.Entity<Customer>(entity =>
+        {
+            entity.HasIndex(customer => customer.Email);
+            entity.HasIndex(customer => customer.PhoneNumber);
+        });
+
+        modelBuilder.Entity<Quote>(entity =>
+        {
+            entity.Property(quote => quote.Status)
+                .HasConversion<string>()
+                .HasMaxLength(30);
+
+            entity.Property(quote => quote.Subtotal)
+                .HasPrecision(18, 2);
+
+            entity.Property(quote => quote.VatRate)
+                .HasPrecision(5, 2);
+
+            entity.Property(quote => quote.VatAmount)
+                .HasPrecision(18, 2);
+
+            entity.Property(quote => quote.Total)
+                .HasPrecision(18, 2);
+
+            entity.HasIndex(quote => quote.QuoteNumber)
+                .IsUnique();
+
+            entity.HasIndex(quote => quote.ValidUntil);
+
+            entity.HasOne(quote => quote.Customer)
+                .WithMany(customer => customer.Quotes)
+                .HasForeignKey(quote => quote.CustomerId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<QuoteItem>(entity =>
+        {
+            entity.Property(item => item.UnitPrice)
+                .HasPrecision(18, 2);
+
+            entity.Property(item => item.LineTotal)
+                .HasPrecision(18, 2);
+
+            entity.HasOne(item => item.Quote)
+                .WithMany(quote => quote.Items)
+                .HasForeignKey(item => item.QuoteId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(item => item.Product)
+                .WithMany(product => product.QuoteItems)
+                .HasForeignKey(item => item.ProductId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<DeliveryLog>(entity =>
+        {
+            entity.Property(log => log.Channel)
+                .HasConversion<string>()
+                .HasMaxLength(30);
+
+            entity.Property(log => log.Status)
+                .HasConversion<string>()
+                .HasMaxLength(50);
+
+            entity.HasIndex(log => new { log.DocumentType, log.DocumentId });
+        });
 
         modelBuilder.Entity<StockAdjustment>(entity =>
         {
