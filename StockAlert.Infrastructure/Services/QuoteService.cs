@@ -290,11 +290,23 @@ public class QuoteService : IQuoteService
 
         var receiptNumber = GenerateReceiptNumber();
         var sales = new List<Sale>();
+        var allocatedTotal = 0m;
 
-        foreach (var item in quote.Items)
+        for (var index = 0; index < quote.Items.Count; index++)
         {
+            var item = quote.Items.ElementAt(index);
             var product = item.Product!;
             product.StockQuantity -= item.Quantity;
+
+            var isLastItem = index == quote.Items.Count - 1;
+            var lineTotalWithVat = isLastItem
+                ? quote.Total - allocatedTotal
+                : decimal.Round(
+                    item.LineTotal * (1m + quote.VatRate / 100m),
+                    2,
+                    MidpointRounding.AwayFromZero);
+
+            allocatedTotal += lineTotalWithVat;
 
             var sale = new Sale
             {
@@ -306,7 +318,7 @@ public class QuoteService : IQuoteService
                 ReceiptNumber = receiptNumber,
                 Quantity = item.Quantity,
                 SaleDate = DateTime.UtcNow,
-                TotalPrice = item.LineTotal
+                TotalPrice = lineTotalWithVat
             };
 
             _context.Sales.Add(sale);
