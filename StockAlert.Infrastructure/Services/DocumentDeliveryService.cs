@@ -40,12 +40,19 @@ public class DocumentDeliveryService : IDocumentDeliveryService
             sale.ReceiptNumber = GenerateReceiptNumber();
         }
 
+        var receiptSales = await _context.Sales
+            .AsNoTracking()
+            .Include(item => item.Product)
+            .Where(item => item.ReceiptNumber == sale.ReceiptNumber)
+            .OrderBy(item => item.SaleDate)
+            .ToListAsync();
+
         var profile = await _businessProfileService.GetAsync();
         var channel = ParseChannel(request.Channel);
         var destination = GetDestination(customer, channel);
 
         var subject = $"Receipt {sale.ReceiptNumber} - {profile.BusinessName}";
-        var body = BuildReceiptBody(profile, sale, customer);
+        var body = BuildReceiptBody(profile, receiptSales, customer);
         var actionUrl = BuildActionUrl(channel, destination, subject, body);
 
         var log = new DeliveryLog
@@ -115,9 +122,17 @@ public class DocumentDeliveryService : IDocumentDeliveryService
 
     private static string BuildReceiptBody(
         BusinessProfileDto profile,
-        Sale sale,
+        IReadOnlyList<Sale> sales,
         Customer customer)
     {
+        if (sales.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "Receipt has no sale lines.");
+        }
+
+        var firstSale = sales[0];
+        var receiptNumber = firstSale.ReceiptNumber ?? "Receipt";
         var builder = new StringBuilder();
 
         builder.AppendLine(profile.BusinessName);
@@ -136,15 +151,28 @@ public class DocumentDeliveryService : IDocumentDeliveryService
         }
 
         builder.AppendLine();
-        builder.AppendLine($"RECEIPT: {sale.ReceiptNumber}");
+        builder.AppendLine($"RECEIPT: {receiptNumber}");
         builder.AppendLine(
-            $"Date: {sale.SaleDate.ToLocalTime():yyyy-MM-dd HH:mm}");
+            $"Date: {firstSale.SaleDate.ToLocalTime():yyyy-MM-dd HH:mm}");
         builder.AppendLine($"Customer: {customer.FullName}");
         builder.AppendLine();
+
+        foreach (var sale in sales)
+        {
+            var unitPrice = sale.Quantity > 0
+                ? sale.TotalPrice / sale.Quantity
+                : 0m;
+
+            builder.AppendLine(
+                $"{sale.Product?.Name ?? "Product"} x {sale.Quantity} @ " +
+                $"{profile.CurrencyCode} {unitPrice.ToString("0.00", CultureInfo.InvariantCulture)} = " +
+                $"{profile.CurrencyCode} {sale.TotalPrice.ToString("0.00", CultureInfo.InvariantCulture)}");
+        }
+
+        builder.AppendLine();
         builder.AppendLine(
-            $"{sale.Product?.Name ?? "Product"} x {sale.Quantity}");
-        builder.AppendLine(
-            $"Total: {profile.CurrencyCode} {sale.TotalPrice.ToString("0.00", CultureInfo.InvariantCulture)}");
+            $"TOTAL: {profile.CurrencyCode} " +
+            $"{sales.Sum(item => item.TotalPrice).ToString("0.00", CultureInfo.InvariantCulture)}");
 
         if (!string.IsNullOrWhiteSpace(profile.ReceiptFooter))
         {
