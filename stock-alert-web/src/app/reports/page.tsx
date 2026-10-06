@@ -40,7 +40,7 @@ interface ReportSummary {
   topSellingProducts: TopSellingProduct[];
 }
 
-type QuickRange = 'today' | '7d' | '30d' | '90d' | 'all';
+type QuickRange = 'today' | '7d' | '30d' | '90d' | 'all' | 'custom';
 
 export default function ReportsPage() {
   const [summary, setSummary] = useState<ReportSummary | null>(null);
@@ -141,7 +141,7 @@ export default function ReportsPage() {
   };
 
   const setCustomRange = (field: 'from' | 'to', value: string) => {
-    setQuickRange('all');
+    setQuickRange('custom');
 
     if (field === 'from') {
       setFromDate(value);
