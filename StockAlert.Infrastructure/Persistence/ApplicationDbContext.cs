@@ -33,6 +33,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
     public DbSet<DeliveryLog> DeliveryLogs => Set<DeliveryLog>();
     public DbSet<QuotePayment> QuotePayments => Set<QuotePayment>();
     public DbSet<StaffMember> StaffMembers => Set<StaffMember>();
+    public DbSet<OwnerReportSettings> OwnerReportSettings => Set<OwnerReportSettings>();
     
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
@@ -183,6 +184,9 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
             StaffMember staff =>
                 $"Staff member '{staff.FullName}' {action.ToLowerInvariant()}.",
 
+            OwnerReportSettings =>
+                $"Owner report configuration {action.ToLowerInvariant()}.",
+
             _ =>
                 $"{entry.Entity.GetType().Name} {action.ToLowerInvariant()}."
         };
@@ -197,6 +201,18 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<OwnerReportSettings>(entity =>
+        {
+            entity.Property(settings => settings.RecipientEmail)
+                .HasMaxLength(256);
+
+            entity.Property(settings => settings.TimeZoneId)
+                .HasMaxLength(100);
+
+            entity.Property(settings => settings.UpdatedBy)
+                .HasMaxLength(256);
+        });
+
         modelBuilder.Entity<AuditLog>(entity =>
         {
             entity.Property(log => log.EntityName).HasMaxLength(100);
