@@ -2,6 +2,7 @@ export interface Product {
   id: string;
   name: string;
   description: string | null;
+  barcode: string | null;
   price: number;
   stockQuantity: number;
   categoryName: string;
@@ -18,6 +19,7 @@ export interface Product {
 export interface ProductFormValues {
   name: string;
   description: string;
+  barcode: string;
   price: string;
   stockQuantity: string;
   categoryName: string;
