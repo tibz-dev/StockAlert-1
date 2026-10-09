@@ -156,7 +156,12 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
         return entry.Entity switch
         {
             Sale sale =>
-                $"Sold {sale.Quantity} unit(s) of product {sale.ProductId}.",
+                sale.WasQueuedOffline
+                    ? $"Offline sale synced: {sale.Quantity} unit(s) of " +
+                      $"{sale.Product?.Name ?? $"product {sale.ProductId}"} " +
+                      $"from device {sale.DeviceId ?? "unknown"}."
+                    : $"Sold {sale.Quantity} unit(s) of " +
+                      $"{sale.Product?.Name ?? $"product {sale.ProductId}"}.",
 
             StockAdjustment adjustment =>
                 $"Stock changed by {adjustment.QuantityChange} unit(s) " +
@@ -243,6 +248,13 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
         {
             entity.Property(sale => sale.TotalPrice).HasPrecision(18, 2);
             entity.HasIndex(sale => sale.ReceiptNumber);
+
+            entity.HasIndex(sale => sale.ClientOperationId)
+                .IsUnique()
+                .HasFilter("[ClientOperationId] IS NOT NULL");
+
+            entity.Property(sale => sale.DeviceId)
+                .HasMaxLength(100);
 
             entity.HasOne(sale => sale.Customer)
                 .WithMany(customer => customer.Sales)
