@@ -625,12 +625,27 @@ function ConvertedReceiptModal({
             />
           </div>
 
-          <button
-            onClick={onClose}
-            className="mt-5 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700"
-          >
-            Done
-          </button>
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <button
+              onClick={() =>
+                window.open(
+                  `/receipts/${conversion.primarySaleId}/print`,
+                  '_blank',
+                  'noopener,noreferrer',
+                )
+              }
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700"
+            >
+              <Printer size={16} />
+              Print Receipt
+            </button>
+            <button
+              onClick={onClose}
+              className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700"
+            >
+              Done
+            </button>
+          </div>
         </div>
       </div>
     </div>
