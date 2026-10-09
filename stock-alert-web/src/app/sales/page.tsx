@@ -529,11 +529,13 @@ function ReceiptDeliveryModal({
 }) {
   const [sending, setSending] = useState('');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   const prepare = async (channel: 'Email' | 'Sms' | 'WhatsApp') => {
     try {
       setSending(channel);
       setError('');
+      setSuccess('');
 
       const response = await api.post<PreparedDelivery>(
         `/sales/${receipt.saleId}/receipt/delivery`,
@@ -541,9 +543,14 @@ function ReceiptDeliveryModal({
       );
 
       if (response.data.status === 'Sent') {
-        setError('');
+        setSuccess(`${channel} receipt sent automatically.`);
       } else if (response.data.actionUrl) {
         window.location.href = response.data.actionUrl;
+        setSuccess(
+          response.data.status === 'PendingProviderConfiguration'
+            ? `${channel} provider needs setup; manual fallback opened.`
+            : `${channel} automatic delivery failed; manual fallback opened.`,
+        );
       } else {
         setError(
           response.data.errorMessage ??
@@ -593,6 +600,12 @@ function ReceiptDeliveryModal({
           {error && (
             <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
               {error}
+            </div>
+          )}
+
+          {success && (
+            <div className="mb-4 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">
+              {success}
             </div>
           )}
 
