@@ -94,7 +94,21 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<Product>().Property(p => p.Price).HasPrecision(18, 2);
+        modelBuilder.Entity<Product>(entity =>
+        {
+            entity.Property(product => product.Price)
+                .HasPrecision(18, 2);
+
+            entity.Property(product => product.Barcode)
+                .HasMaxLength(32);
+
+            entity.Property(product => product.DeletedBy)
+                .HasMaxLength(256);
+
+            entity.HasIndex(product => product.Barcode)
+                .IsUnique()
+                .HasFilter("[Barcode] IS NOT NULL");
+        });
         modelBuilder.Entity<Sale>(entity =>
         {
             entity.Property(sale => sale.TotalPrice).HasPrecision(18, 2);
