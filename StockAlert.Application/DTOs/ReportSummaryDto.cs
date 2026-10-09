@@ -13,5 +13,6 @@ public record ReportSummaryDto(
     int StockMovementCount,
     int UnitsAdded,
     int UnitsRemoved,
-    List<TopSellingProductDto> TopSellingProducts
+    List<TopSellingProductDto> TopSellingProducts,
+    List<SalespersonPerformanceDto> Salespeople
 );
