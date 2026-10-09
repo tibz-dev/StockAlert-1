@@ -17,5 +17,6 @@ public interface IApplicationDbContext
     DbSet<Quote> Quotes { get; }
     DbSet<QuoteItem> QuoteItems { get; }
     DbSet<DeliveryLog> DeliveryLogs { get; }
+    DbSet<QuotePayment> QuotePayments { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 }
