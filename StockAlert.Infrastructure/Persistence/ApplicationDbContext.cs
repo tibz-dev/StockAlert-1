@@ -32,6 +32,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
     public DbSet<QuoteItem> QuoteItems => Set<QuoteItem>();
     public DbSet<DeliveryLog> DeliveryLogs => Set<DeliveryLog>();
     public DbSet<QuotePayment> QuotePayments => Set<QuotePayment>();
+    public DbSet<StaffMember> StaffMembers => Set<StaffMember>();
     
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
@@ -103,6 +104,14 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
                 .WithMany(customer => customer.Sales)
                 .HasForeignKey(sale => sale.CustomerId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(sale => sale.Salesperson)
+                .WithMany(staff => staff.Sales)
+                .HasForeignKey(sale => sale.SalespersonId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.Property(sale => sale.SalespersonName)
+                .HasMaxLength(200);
         });
 
         modelBuilder.Entity<BusinessProfile>(entity =>
@@ -135,8 +144,14 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
             entity.Property(quote => quote.Total)
                 .HasPrecision(18, 2);
 
+            entity.Property(quote => quote.DepositPercentage)
+                .HasPrecision(5, 2);
+
             entity.Property(quote => quote.DepositRequired)
                 .HasPrecision(18, 2);
+
+            entity.Property(quote => quote.SalespersonName)
+                .HasMaxLength(200);
 
             entity.HasIndex(quote => quote.QuoteNumber)
                 .IsUnique();
@@ -147,6 +162,11 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
                 .WithMany(customer => customer.Quotes)
                 .HasForeignKey(quote => quote.CustomerId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(quote => quote.Salesperson)
+                .WithMany(staff => staff.Quotes)
+                .HasForeignKey(quote => quote.SalespersonId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<QuoteItem>(entity =>
@@ -166,6 +186,23 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
                 .WithMany(product => product.QuoteItems)
                 .HasForeignKey(item => item.ProductId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<StaffMember>(entity =>
+        {
+            entity.Property(staff => staff.FullName)
+                .HasMaxLength(200);
+
+            entity.Property(staff => staff.Email)
+                .HasMaxLength(256);
+
+            entity.Property(staff => staff.PhoneNumber)
+                .HasMaxLength(50);
+
+            entity.Property(staff => staff.Role)
+                .HasMaxLength(100);
+
+            entity.HasIndex(staff => staff.Email);
         });
 
         modelBuilder.Entity<QuotePayment>(entity =>
