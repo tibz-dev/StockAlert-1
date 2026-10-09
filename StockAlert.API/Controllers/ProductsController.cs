@@ -45,6 +45,10 @@ public class ProductsController : ControllerBase
         {
             return BadRequest(new { message = ex.Message });
         }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
     }
 
     [HttpPut("{id:guid}")]
@@ -64,6 +68,10 @@ public class ProductsController : ControllerBase
         {
             return BadRequest(new { message = ex.Message });
         }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
     }
 
     [HttpDelete("{id:guid}")]
@@ -71,7 +79,15 @@ public class ProductsController : ControllerBase
     {
         try
         {
-            var deleted = await _productService.DeleteProductAsync(id);
+            var performedBy =
+                User.FindFirstValue(ClaimTypes.Name)
+                ?? User.FindFirstValue(ClaimTypes.Email)
+                ?? User.FindFirstValue(ClaimTypes.NameIdentifier)
+                ?? "Unknown User";
+
+            var deleted = await _productService.DeleteProductAsync(
+                id,
+                performedBy);
 
             return deleted
                 ? NoContent()
