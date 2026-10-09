@@ -25,7 +25,14 @@ public class StaffService : IStaffService
 
         return await query
             .OrderBy(staff => staff.FullName)
-            .Select(staff => ToDto(staff))
+            .Select(staff => new StaffMemberDto(
+                staff.Id,
+                staff.FullName,
+                staff.Email,
+                staff.PhoneNumber,
+                staff.Role,
+                staff.IsActive,
+                staff.CreatedAt))
             .ToListAsync();
     }
 
@@ -34,7 +41,14 @@ public class StaffService : IStaffService
         return await _context.StaffMembers
             .AsNoTracking()
             .Where(staff => staff.Id == id)
-            .Select(staff => ToDto(staff))
+            .Select(staff => new StaffMemberDto(
+                staff.Id,
+                staff.FullName,
+                staff.Email,
+                staff.PhoneNumber,
+                staff.Role,
+                staff.IsActive,
+                staff.CreatedAt))
             .FirstOrDefaultAsync();
     }
 
