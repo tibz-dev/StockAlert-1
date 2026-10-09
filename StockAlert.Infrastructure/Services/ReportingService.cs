@@ -124,6 +124,18 @@ public class ReportingService : IReportingService
                 ))
             .ToListAsync();
 
+        var salespeople = await salesQuery
+            .GroupBy(sale => sale.SalespersonName ?? "Unassigned")
+            .Select(group => new SalespersonPerformanceDto(
+                group.Key,
+                group.Count(),
+                group.Sum(sale => sale.Quantity),
+                group.Sum(sale => sale.TotalPrice)
+            ))
+            .OrderByDescending(item => item.Revenue)
+            .ThenByDescending(item => item.UnitsSold)
+            .ToListAsync();
+
         return new ReportSummaryDto(
             FromDate: fromDate?.Date,
             ToDate: toDate?.Date,
@@ -137,7 +149,8 @@ public class ReportingService : IReportingService
             StockMovementCount: stockMovementCount,
             UnitsAdded: unitsAdded,
             UnitsRemoved: Math.Abs(unitsRemovedRaw),
-            TopSellingProducts: topSellingProducts
+            TopSellingProducts: topSellingProducts,
+            Salespeople: salespeople
         );
     }
 
@@ -160,7 +173,7 @@ public class ReportingService : IReportingService
             .ToListAsync();
 
         var builder = new StringBuilder();
-        builder.AppendLine("Date,Product,Quantity,Unit Price,Total");
+        builder.AppendLine("Date,Receipt,Salesperson,Product,Quantity,Unit Price,Total");
 
         foreach (var sale in sales)
         {
@@ -171,6 +184,8 @@ public class ReportingService : IReportingService
 
             builder.AppendLine(string.Join(",",
                 CsvCell(sale.SaleDate.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)),
+                CsvCell(sale.ReceiptNumber ?? string.Empty),
+                CsvCell(sale.SalespersonName ?? "Unassigned"),
                 CsvCell(productName),
                 sale.Quantity.ToString(CultureInfo.InvariantCulture),
                 unitPrice.ToString("0.00", CultureInfo.InvariantCulture),
