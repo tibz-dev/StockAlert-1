@@ -12,13 +12,16 @@ public class DocumentDeliveryService : IDocumentDeliveryService
 {
     private readonly IApplicationDbContext _context;
     private readonly IBusinessProfileService _businessProfileService;
+    private readonly IOutboundMessageSender _messageSender;
 
     public DocumentDeliveryService(
         IApplicationDbContext context,
-        IBusinessProfileService businessProfileService)
+        IBusinessProfileService businessProfileService,
+        IOutboundMessageSender messageSender)
     {
         _context = context;
         _businessProfileService = businessProfileService;
+        _messageSender = messageSender;
     }
 
     public async Task<ReceiptDocumentDto?> GetReceiptAsync(Guid saleId)
@@ -127,6 +130,11 @@ public class DocumentDeliveryService : IDocumentDeliveryService
         var subject = $"Receipt {sale.ReceiptNumber} - {profile.BusinessName}";
         var body = BuildReceiptBody(profile, receiptSales, customer);
         var actionUrl = BuildActionUrl(channel, destination, subject, body);
+        var sendResult = await SendAsync(
+            channel,
+            destination,
+            subject,
+            body);
 
         var log = new DeliveryLog
         {
@@ -135,8 +143,10 @@ public class DocumentDeliveryService : IDocumentDeliveryService
             DocumentId = sale.Id,
             Channel = channel,
             Destination = destination,
-            Status = DeliveryStatus.Prepared,
-            ActionUrl = actionUrl,
+            Status = ToDeliveryStatus(sendResult),
+            ActionUrl = sendResult.Sent ? null : actionUrl,
+            ProviderReference = sendResult.ProviderReference,
+            ErrorMessage = sendResult.ErrorMessage,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -169,8 +179,13 @@ public class DocumentDeliveryService : IDocumentDeliveryService
         var subject = $"Quote {quote.QuoteNumber} - {profile.BusinessName}";
         var body = BuildQuoteBody(profile, quote, customer);
         var actionUrl = BuildActionUrl(channel, destination, subject, body);
+        var sendResult = await SendAsync(
+            channel,
+            destination,
+            subject,
+            body);
 
-        if (quote.Status == QuoteStatus.Draft)
+        if (quote.Status == QuoteStatus.Draft && sendResult.Sent)
         {
             quote.Status = QuoteStatus.Sent;
             quote.SentAt = DateTime.UtcNow;
@@ -183,8 +198,10 @@ public class DocumentDeliveryService : IDocumentDeliveryService
             DocumentId = quote.Id,
             Channel = channel,
             Destination = destination,
-            Status = DeliveryStatus.Prepared,
-            ActionUrl = actionUrl,
+            Status = ToDeliveryStatus(sendResult),
+            ActionUrl = sendResult.Sent ? null : actionUrl,
+            ProviderReference = sendResult.ProviderReference,
+            ErrorMessage = sendResult.ErrorMessage,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -359,6 +376,47 @@ public class DocumentDeliveryService : IDocumentDeliveryService
         return builder.ToString().Trim();
     }
 
+    private Task<OutboundMessageResult> SendAsync(
+        DeliveryChannel channel,
+        string destination,
+        string subject,
+        string body)
+    {
+        return channel switch
+        {
+            DeliveryChannel.Email =>
+                _messageSender.SendEmailAsync(
+                    destination,
+                    subject,
+                    body),
+
+            DeliveryChannel.Sms =>
+                _messageSender.SendSmsAsync(
+                    destination,
+                    body),
+
+            DeliveryChannel.WhatsApp =>
+                _messageSender.SendWhatsAppAsync(
+                    destination,
+                    body),
+
+            _ => throw new ArgumentOutOfRangeException(nameof(channel))
+        };
+    }
+
+    private static DeliveryStatus ToDeliveryStatus(
+        OutboundMessageResult result)
+    {
+        if (result.Sent)
+        {
+            return DeliveryStatus.Sent;
+        }
+
+        return result.ProviderConfigured
+            ? DeliveryStatus.Failed
+            : DeliveryStatus.PendingProviderConfiguration;
+    }
+
     private static DeliveryChannel ParseChannel(string value)
     {
         if (!Enum.TryParse<DeliveryChannel>(
@@ -502,7 +560,9 @@ public class DocumentDeliveryService : IDocumentDeliveryService
             log.Channel.ToString(),
             log.Destination,
             log.Status.ToString(),
-            log.ActionUrl ?? string.Empty
+            log.ActionUrl ?? string.Empty,
+            log.ProviderReference,
+            log.ErrorMessage
         );
     }
 }
