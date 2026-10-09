@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { getSessionInfo } from '@/lib/auth';
 import {
   BarChart3,
   BriefcaseBusiness,
@@ -26,11 +27,31 @@ const menuItems = [
   { name: 'Suppliers', href: '/suppliers', icon: Truck },
   { name: 'Quotes', href: '/quotes', icon: FileText },
   { name: 'Customers', href: '/customers', icon: Users },
-  { name: 'Staff', href: '/staff', icon: BriefcaseBusiness },
+  {
+    name: 'Staff',
+    href: '/staff',
+    icon: BriefcaseBusiness,
+    roles: ['Owner'],
+  },
   { name: 'Sales', href: '/sales', icon: ReceiptText },
-  { name: 'Reports', href: '/reports', icon: BarChart3 },
-  { name: 'Business Settings', href: '/settings/business', icon: Settings2 },
-  { name: 'Audit Logs', href: '/audit', icon: History },
+  {
+    name: 'Reports',
+    href: '/reports',
+    icon: BarChart3,
+    roles: ['Owner', 'Manager'],
+  },
+  {
+    name: 'Business Settings',
+    href: '/settings/business',
+    icon: Settings2,
+    roles: ['Owner'],
+  },
+  {
+    name: 'Audit Logs',
+    href: '/audit',
+    icon: History,
+    roles: ['Owner', 'Manager'],
+  },
   { name: 'Offline Queue', href: '/offline', icon: CloudOff },
 ];
 
