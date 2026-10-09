@@ -66,10 +66,16 @@ public class OwnerReportWorker : BackgroundService
                 return;
             }
 
+            var dailyScheduledDate = nowLocal.Date;
+
             if (settings.DailyEnabled
-                && IsDailyDue(settings.LastDailySentAt, nowLocal, timeZone))
+                && IsDue(
+                    settings.LastDailySentAt,
+                    dailyScheduledDate,
+                    timeZone))
             {
-                var end = nowLocal.Date.AddDays(-1);
+                var end = dailyScheduledDate.AddDays(-1);
+
                 await SendReportAsync(
                     "Daily",
                     end,
@@ -84,14 +90,17 @@ public class OwnerReportWorker : BackgroundService
                 await context.SaveChangesAsync(cancellationToken);
             }
 
+            var weeklyScheduledDate = GetLatestWeeklyScheduleDate(
+                nowLocal.Date,
+                settings.WeeklyDay);
+
             if (settings.WeeklyEnabled
-                && (int)nowLocal.DayOfWeek == settings.WeeklyDay
-                && IsPeriodDue(
+                && IsDue(
                     settings.LastWeeklySentAt,
-                    nowLocal.Date,
+                    weeklyScheduledDate,
                     timeZone))
             {
-                var end = nowLocal.Date.AddDays(-1);
+                var end = weeklyScheduledDate.AddDays(-1);
                 var start = end.AddDays(-6);
 
                 await SendReportAsync(
@@ -108,19 +117,23 @@ public class OwnerReportWorker : BackgroundService
                 await context.SaveChangesAsync(cancellationToken);
             }
 
+            var monthlyScheduledDate =
+                GetLatestMonthlyScheduleDate(
+                    nowLocal.Date,
+                    settings.MonthlyDay);
+
             if (settings.MonthlyEnabled
-                && nowLocal.Day >= settings.MonthlyDay
-                && IsMonthlyDue(
+                && IsDue(
                     settings.LastMonthlySentAt,
-                    nowLocal,
+                    monthlyScheduledDate,
                     timeZone))
             {
-                var firstOfCurrentMonth = new DateTime(
-                    nowLocal.Year,
-                    nowLocal.Month,
+                var firstOfScheduleMonth = new DateTime(
+                    monthlyScheduledDate.Year,
+                    monthlyScheduledDate.Month,
                     1);
 
-                var end = firstOfCurrentMonth.AddDays(-1);
+                var end = firstOfScheduleMonth.AddDays(-1);
                 var start = new DateTime(
                     end.Year,
                     end.Month,
@@ -140,15 +153,18 @@ public class OwnerReportWorker : BackgroundService
                 await context.SaveChangesAsync(cancellationToken);
             }
 
+            var yearlyScheduledDate = new DateTime(
+                nowLocal.Year,
+                1,
+                1);
+
             if (settings.YearlyEnabled
-                && nowLocal.Month == 1
-                && nowLocal.Day == 1
-                && IsYearlyDue(
+                && IsDue(
                     settings.LastYearlySentAt,
-                    nowLocal,
+                    yearlyScheduledDate,
                     timeZone))
             {
-                var year = nowLocal.Year - 1;
+                var year = yearlyScheduledDate.Year - 1;
                 var start = new DateTime(year, 1, 1);
                 var end = new DateTime(year, 12, 31);
 
@@ -287,9 +303,9 @@ public class OwnerReportWorker : BackgroundService
         return builder.ToString();
     }
 
-    private static bool IsDailyDue(
+    private static bool IsDue(
         DateTime? lastSentUtc,
-        DateTime nowLocal,
+        DateTime scheduledLocalDate,
         TimeZoneInfo timeZone)
     {
         if (!lastSentUtc.HasValue)
@@ -298,62 +314,44 @@ public class OwnerReportWorker : BackgroundService
         }
 
         var lastLocal = TimeZoneInfo.ConvertTimeFromUtc(
-            DateTime.SpecifyKind(lastSentUtc.Value, DateTimeKind.Utc),
+            DateTime.SpecifyKind(
+                lastSentUtc.Value,
+                DateTimeKind.Utc),
             timeZone);
 
-        return lastLocal.Date < nowLocal.Date;
+        return lastLocal.Date < scheduledLocalDate.Date;
     }
 
-    private static bool IsPeriodDue(
-        DateTime? lastSentUtc,
-        DateTime todayLocal,
-        TimeZoneInfo timeZone)
+    private static DateTime GetLatestWeeklyScheduleDate(
+        DateTime today,
+        int weeklyDay)
     {
-        if (!lastSentUtc.HasValue)
-        {
-            return true;
-        }
+        var daysSinceScheduled =
+            ((int)today.DayOfWeek - weeklyDay + 7) % 7;
 
-        var lastLocal = TimeZoneInfo.ConvertTimeFromUtc(
-            DateTime.SpecifyKind(lastSentUtc.Value, DateTimeKind.Utc),
-            timeZone);
-
-        return lastLocal.Date < todayLocal;
+        return today.AddDays(-daysSinceScheduled);
     }
 
-    private static bool IsMonthlyDue(
-        DateTime? lastSentUtc,
-        DateTime nowLocal,
-        TimeZoneInfo timeZone)
+    private static DateTime GetLatestMonthlyScheduleDate(
+        DateTime today,
+        int monthlyDay)
     {
-        if (!lastSentUtc.HasValue)
+        var safeDay = Math.Clamp(monthlyDay, 1, 28);
+
+        if (today.Day >= safeDay)
         {
-            return true;
+            return new DateTime(
+                today.Year,
+                today.Month,
+                safeDay);
         }
 
-        var lastLocal = TimeZoneInfo.ConvertTimeFromUtc(
-            DateTime.SpecifyKind(lastSentUtc.Value, DateTimeKind.Utc),
-            timeZone);
+        var previousMonth = today.AddMonths(-1);
 
-        return lastLocal.Year != nowLocal.Year
-            || lastLocal.Month != nowLocal.Month;
-    }
-
-    private static bool IsYearlyDue(
-        DateTime? lastSentUtc,
-        DateTime nowLocal,
-        TimeZoneInfo timeZone)
-    {
-        if (!lastSentUtc.HasValue)
-        {
-            return true;
-        }
-
-        var lastLocal = TimeZoneInfo.ConvertTimeFromUtc(
-            DateTime.SpecifyKind(lastSentUtc.Value, DateTimeKind.Utc),
-            timeZone);
-
-        return lastLocal.Year != nowLocal.Year;
+        return new DateTime(
+            previousMonth.Year,
+            previousMonth.Month,
+            safeDay);
     }
 
     private static TimeZoneInfo ResolveTimeZone(string id)
