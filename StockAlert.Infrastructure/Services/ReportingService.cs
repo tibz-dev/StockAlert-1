@@ -38,6 +38,7 @@ public class ReportingService : IReportingService
 
         var currentProducts = await _context.Products
             .AsNoTracking()
+            .Where(product => !product.IsDeleted)
             .Select(product => new
             {
                 product.Id,
@@ -49,6 +50,7 @@ public class ReportingService : IReportingService
 
         var totalInventoryValue = await _context.Products
             .AsNoTracking()
+            .Where(product => !product.IsDeleted)
             .Select(product => (decimal?)(product.Price * product.StockQuantity))
             .SumAsync() ?? 0m;
 
@@ -237,17 +239,38 @@ public class ReportingService : IReportingService
         var suppliers = await _context.Suppliers
             .AsNoTracking()
             .OrderBy(supplier => supplier.CompanyName)
-            .Select(supplier => new
+            .ToListAsync();
+
+        var products = await _context.Products
+            .AsNoTracking()
+            .Where(product => !product.IsDeleted)
+            .Select(product => new
             {
-                supplier.CompanyName,
-                supplier.ContactEmail,
-                ProductCount = _context.Products.Count(product =>
-                    product.SupplierId == supplier.Id),
-                LowStockProductCount = _context.Products.Count(product =>
-                    product.SupplierId == supplier.Id
-                    && product.StockQuantity < LowStockThreshold)
+                product.Id,
+                product.SupplierId,
+                product.StockQuantity
             })
             .ToListAsync();
+
+        var productIds = products
+            .Select(product => product.Id)
+            .ToList();
+
+        var reserved = await _context.QuoteItems
+            .AsNoTracking()
+            .Where(item =>
+                productIds.Contains(item.ProductId)
+                && item.Quote != null
+                && item.Quote.Status == QuoteStatus.Accepted)
+            .GroupBy(item => item.ProductId)
+            .Select(group => new
+            {
+                ProductId = group.Key,
+                Quantity = group.Sum(item => item.Quantity)
+            })
+            .ToDictionaryAsync(
+                item => item.ProductId,
+                item => item.Quantity);
 
         var builder = new StringBuilder();
         builder.AppendLine(
@@ -255,11 +278,25 @@ public class ReportingService : IReportingService
 
         foreach (var supplier in suppliers)
         {
+            var supplierProducts = products
+                .Where(product =>
+                    product.SupplierId == supplier.Id)
+                .ToList();
+
+            var lowStockCount = supplierProducts.Count(product =>
+                Math.Max(
+                    0,
+                    product.StockQuantity
+                    - reserved.GetValueOrDefault(product.Id))
+                < LowStockThreshold);
+
             builder.AppendLine(string.Join(",",
                 CsvCell(supplier.CompanyName),
                 CsvCell(supplier.ContactEmail ?? string.Empty),
-                supplier.ProductCount.ToString(CultureInfo.InvariantCulture),
-                supplier.LowStockProductCount.ToString(CultureInfo.InvariantCulture)));
+                supplierProducts.Count.ToString(
+                    CultureInfo.InvariantCulture),
+                lowStockCount.ToString(
+                    CultureInfo.InvariantCulture)));
         }
 
         return Encoding.UTF8.GetBytes(builder.ToString());
