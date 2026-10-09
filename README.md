@@ -336,3 +336,61 @@ The MVP intentionally leaves these for the production hardening phase:
 - automated quote expiry reminders and follow-ups;
 - deployment secrets, production CORS, structured logging, monitoring, tests, and CI/CD;
 - optional SmartTrade/POS integration after confirmed API documentation and credentials.
+
+
+## Automated customer communication
+
+StockAlert can send quote and receipt messages automatically from the API.
+
+### Email
+
+Email uses standard SMTP configuration. Configure these as server environment variables rather than committing passwords:
+
+```text
+Communication__Smtp__Host
+Communication__Smtp__Port
+Communication__Smtp__Username
+Communication__Smtp__Password
+Communication__Smtp__FromEmail
+Communication__Smtp__FromName
+Communication__Smtp__EnableSsl
+```
+
+### SMS and WhatsApp
+
+SMS and WhatsApp use Twilio Programmable Messaging:
+
+```text
+Communication__Twilio__AccountSid
+Communication__Twilio__AuthToken
+Communication__Twilio__SmsFromNumber
+Communication__Twilio__WhatsAppFromNumber
+Communication__Twilio__WhatsAppContentSid
+```
+
+`WhatsAppContentSid` is optional for sandbox/customer-service-window testing. For business-initiated WhatsApp messages outside the customer-service window, configure an approved WhatsApp content template and its Content SID.
+
+The Business Settings screen exposes provider readiness as **Configured** or **Setup required**, but never exposes the credentials themselves.
+
+When a provider is configured, delivery happens server-side and the delivery log records the provider result. If a provider is missing or an automated send fails, StockAlert keeps the manual Email/SMS/WhatsApp action as a fallback instead of falsely reporting the document as sent.
+
+## Staff and salesperson attribution
+
+The Staff module stores salespeople and other staff separately from login accounts. Active staff can be selected when creating a quote or recording a direct sale.
+
+Every quote and sale stores both the selected staff ID and a salesperson-name snapshot. This keeps historical reports understandable even when staff information changes later.
+
+Sales reports now include salesperson performance by date range: transaction count, units sold, and revenue. Sales CSV exports include receipt number and salesperson.
+
+## Negotiated quote deposits
+
+Quotes support negotiated deposits as a percentage of the final quote total. The Create Quote screen calculates in real time:
+
+- subtotal;
+- VAT from Business Settings;
+- quote total;
+- negotiated deposit percentage;
+- calculated deposit amount;
+- balance remaining after the deposit.
+
+The backend recalculates and validates the deposit amount when the quote is saved, so the browser preview is not treated as the source of truth.
