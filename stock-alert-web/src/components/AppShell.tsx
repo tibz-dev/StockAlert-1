@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
+import OfflineSyncManager from '@/components/OfflineSyncManager';
 
 function isTokenExpired(token: string) {
   try {
@@ -43,6 +44,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     }
 
     setCheckingAuth(false);
+
+    if ('serviceWorker' in navigator) {
+      void navigator.serviceWorker.register('/sw.js');
+    }
   }, [isPublicRoute, pathname, router]);
 
   if (checkingAuth) {
@@ -64,6 +69,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     <>
       <Sidebar />
       <main className="min-h-screen flex-1 overflow-y-auto bg-gray-50">
+        <OfflineSyncManager />
         {children}
       </main>
     </>
