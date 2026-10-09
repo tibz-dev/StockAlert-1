@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   BarChart3,
   BriefcaseBusiness,
+  CloudOff,
   FileText,
   History,
   ListRestart,
@@ -30,6 +31,7 @@ const menuItems = [
   { name: 'Reports', href: '/reports', icon: BarChart3 },
   { name: 'Business Settings', href: '/settings/business', icon: Settings2 },
   { name: 'Audit Logs', href: '/audit', icon: History },
+  { name: 'Offline Queue', href: '/offline', icon: CloudOff },
 ];
 
 export default function Sidebar() {
