@@ -28,7 +28,7 @@ public class DocumentDeliveryService : IDocumentDeliveryService
             .Include(item => item.Customer)
             .FirstOrDefaultAsync(item => item.Id == saleId);
 
-        if (sale == null || sale.Customer == null)
+        if (sale == null)
         {
             return null;
         }
@@ -55,10 +55,17 @@ public class DocumentDeliveryService : IDocumentDeliveryService
         var business = await _businessProfileService.GetAsync();
         var customer = sale.Customer;
 
-        return new ReceiptDocumentDto(
-            receiptNumber,
-            receiptSales[0].SaleDate,
-            new CustomerDto(
+        var customerDto = customer == null
+            ? new CustomerDto(
+                Guid.Empty,
+                "Walk-in Customer",
+                null,
+                null,
+                null,
+                null,
+                false,
+                null)
+            : new CustomerDto(
                 customer.Id,
                 customer.FullName,
                 customer.CompanyName,
@@ -67,7 +74,12 @@ public class DocumentDeliveryService : IDocumentDeliveryService
                 customer.WhatsAppNumber,
                 customer.HasWhatsApp,
                 customer.Address
-            ),
+            );
+
+        return new ReceiptDocumentDto(
+            receiptNumber,
+            receiptSales[0].SaleDate,
+            customerDto,
             business,
             receiptSales.Sum(item => item.TotalPrice),
             receiptSales.Select(item => new ReceiptLineDto(
