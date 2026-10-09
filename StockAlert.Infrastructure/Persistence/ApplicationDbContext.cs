@@ -48,9 +48,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
         foreach (var entry in ChangeTracker.Entries())
         {
             if (entry.Entity is AuditLog
-                || entry.Entity is StockAdjustment
                 || entry.Entity is ApplicationUser
-                || entry.Entity is BusinessProfile
                 || entry.Entity is Customer
                 || entry.Entity is DeliveryLog
                 || IsIdentityEntity(entry.Entity.GetType())
@@ -60,14 +58,25 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
                 continue;
             }
 
+            var action = GetAuditAction(entry);
             var auditEntry = new AuditLog
             {
                 Id = Guid.NewGuid(),
                 EntityName = entry.Entity.GetType().Name,
-                Action = entry.State.ToString(),
+                EntityId = GetEntityId(entry),
+                Action = action,
                 UserId = GetCurrentUserIdentifier(),
+                Summary = GetAuditSummary(entry, action),
+                IpAddress = _httpContextAccessor?
+                    .HttpContext?
+                    .Connection
+                    .RemoteIpAddress?
+                    .ToString(),
                 Timestamp = DateTime.UtcNow,
-                Changes = JsonSerializer.Serialize(entry.CurrentValues.ToObject())
+                Changes = entry.Entity is BusinessProfile
+                    ? null
+                    : JsonSerializer.Serialize(
+                        entry.CurrentValues.ToObject())
             };
 
             auditEntries.Add(auditEntry);
@@ -80,9 +89,103 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
     {
         var user = _httpContextAccessor?.HttpContext?.User;
 
-        return user?.FindFirstValue(ClaimTypes.Email)
+        return user?.FindFirstValue(ClaimTypes.Name)
+            ?? user?.FindFirstValue(ClaimTypes.Email)
             ?? user?.FindFirstValue(ClaimTypes.NameIdentifier)
             ?? "System";
+    }
+
+    private static string GetAuditAction(
+        Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry entry)
+    {
+        if (entry.Entity is Sale && entry.State == EntityState.Added)
+        {
+            return "Sold";
+        }
+
+        if (entry.Entity is StockAdjustment
+            && entry.State == EntityState.Added)
+        {
+            return "StockAdjusted";
+        }
+
+        if (entry.Entity is QuotePayment
+            && entry.State == EntityState.Added)
+        {
+            return "PaymentRecorded";
+        }
+
+        if (entry.Entity is Quote && entry.State == EntityState.Added)
+        {
+            return "QuoteCreated";
+        }
+
+        if (entry.Entity is Product
+            && entry.State == EntityState.Modified)
+        {
+            var deletedProperty = entry.Property(nameof(Product.IsDeleted));
+
+            if (deletedProperty.IsModified
+                && deletedProperty.CurrentValue is true)
+            {
+                return "Archived";
+            }
+        }
+
+        return entry.State.ToString();
+    }
+
+    private static string? GetEntityId(
+        Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry entry)
+    {
+        var idProperty = entry.Properties.FirstOrDefault(
+            property =>
+                string.Equals(
+                    property.Metadata.Name,
+                    "Id",
+                    StringComparison.OrdinalIgnoreCase));
+
+        return idProperty?.CurrentValue?.ToString();
+    }
+
+    private static string GetAuditSummary(
+        Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry entry,
+        string action)
+    {
+        return entry.Entity switch
+        {
+            Sale sale =>
+                $"Sold {sale.Quantity} unit(s) of product {sale.ProductId}.",
+
+            StockAdjustment adjustment =>
+                $"Stock changed by {adjustment.QuantityChange} unit(s) " +
+                $"for product {adjustment.ProductId}. Reason: {adjustment.Reason}",
+
+            Product product when action == "Archived" =>
+                $"Product '{product.Name}' was archived. " +
+                $"Archived by: {product.DeletedBy ?? "Unknown User"}.",
+
+            Product product =>
+                $"Product '{product.Name}' {action.ToLowerInvariant()}.",
+
+            Quote quote =>
+                $"Quote {quote.QuoteNumber} {action.ToLowerInvariant()}.",
+
+            QuotePayment payment =>
+                $"Payment of {payment.Amount:0.00} recorded for quote {payment.QuoteId}.",
+
+            BusinessProfile =>
+                $"Business settings {action.ToLowerInvariant()}.",
+
+            Supplier supplier =>
+                $"Supplier '{supplier.CompanyName}' {action.ToLowerInvariant()}.",
+
+            StaffMember staff =>
+                $"Staff member '{staff.FullName}' {action.ToLowerInvariant()}.",
+
+            _ =>
+                $"{entry.Entity.GetType().Name} {action.ToLowerInvariant()}."
+        };
     }
 
     private static bool IsIdentityEntity(Type entityType)
@@ -94,6 +197,17 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<AuditLog>(entity =>
+        {
+            entity.Property(log => log.EntityName).HasMaxLength(100);
+            entity.Property(log => log.EntityId).HasMaxLength(100);
+            entity.Property(log => log.Action).HasMaxLength(100);
+            entity.Property(log => log.UserId).HasMaxLength(256);
+            entity.Property(log => log.IpAddress).HasMaxLength(100);
+            entity.HasIndex(log => log.Timestamp);
+            entity.HasIndex(log => new { log.EntityName, log.Action });
+        });
+
         modelBuilder.Entity<Product>(entity =>
         {
             entity.Property(product => product.Price)
