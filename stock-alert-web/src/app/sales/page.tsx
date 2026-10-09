@@ -320,6 +320,7 @@ export default function SalesPage() {
       deviceId,
       clientCreatedAt,
       offlineUnitPrice: selectedProduct.price,
+      offlineExpectedTotal: estimatedTotal,
     };
 
     const queueSale = async () => {
