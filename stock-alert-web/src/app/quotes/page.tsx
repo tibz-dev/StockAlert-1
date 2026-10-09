@@ -681,12 +681,16 @@ function ConvertedReceiptModal({
 
 function CreateQuoteModal({
   products,
+  staff,
+  business,
   onClose,
   onCreated,
 }: {
   products: Product[];
+  staff: StaffMember[];
+  business: BusinessProfile | null;
   onClose: () => void;
-  onCreated: () => Promise<void>;
+  onCreated: (message: string) => Promise<void>;
 }) {
   const [customerName, setCustomerName] = useState('');
   const [customerCompanyName, setCustomerCompanyName] = useState('');
@@ -695,14 +699,70 @@ function CreateQuoteModal({
   const [customerWhatsAppNumber, setCustomerWhatsAppNumber] = useState('');
   const [customerHasWhatsApp, setCustomerHasWhatsApp] = useState(false);
   const [customerAddress, setCustomerAddress] = useState('');
+  const [salespersonId, setSalespersonId] = useState('');
   const [validUntil, setValidUntil] = useState('');
   const [notes, setNotes] = useState('');
-  const [depositRequired, setDepositRequired] = useState('');
+  const [depositPercentage, setDepositPercentage] = useState('0');
+  const [sendEmail, setSendEmail] = useState(false);
+  const [sendSms, setSendSms] = useState(false);
+  const [sendWhatsApp, setSendWhatsApp] = useState(false);
   const [items, setItems] = useState<QuoteFormItem[]>([
     { productId: '', quantity: '1', unitPrice: '' },
   ]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  const currency = business?.currencyCode ?? 'ZAR';
+
+  const pricing = useMemo(() => {
+    const subtotal = items.reduce((sum, item) => {
+      const product = products.find(
+        (entry) => entry.id === item.productId,
+      );
+      const quantity = Number(item.quantity);
+      const enteredPrice = Number(item.unitPrice);
+      const unitPrice = item.unitPrice
+        ? enteredPrice
+        : product?.price ?? 0;
+
+      if (
+        !product ||
+        !Number.isFinite(quantity) ||
+        quantity <= 0 ||
+        !Number.isFinite(unitPrice) ||
+        unitPrice <= 0
+      ) {
+        return sum;
+      }
+
+      return sum + quantity * unitPrice;
+    }, 0);
+
+    const vatRate = business?.isVatRegistered
+      ? business.defaultVatRate
+      : 0;
+    const vatAmount = roundMoney(subtotal * (vatRate / 100));
+    const total = roundMoney(subtotal + vatAmount);
+
+    const parsedPercentage = Number(depositPercentage);
+    const safePercentage = Number.isFinite(parsedPercentage)
+      ? Math.min(100, Math.max(0, parsedPercentage))
+      : 0;
+
+    const depositAmount = roundMoney(
+      total * (safePercentage / 100),
+    );
+
+    return {
+      subtotal,
+      vatRate,
+      vatAmount,
+      total,
+      depositPercentage: safePercentage,
+      depositAmount,
+      balanceAfterDeposit: roundMoney(total - depositAmount),
+    };
+  }, [business, depositPercentage, items, products]);
 
   const addItem = () => {
     setItems((current) => [
@@ -724,7 +784,9 @@ function CreateQuoteModal({
   };
 
   const removeItem = (index: number) => {
-    setItems((current) => current.filter((_, itemIndex) => itemIndex !== index));
+    setItems((current) =>
+      current.filter((_, itemIndex) => itemIndex !== index),
+    );
   };
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -751,28 +813,97 @@ function CreateQuoteModal({
       return;
     }
 
+    if (
+      pricing.depositPercentage < 0 ||
+      pricing.depositPercentage > 100
+    ) {
+      setError('Deposit percentage must be between 0% and 100%.');
+      return;
+    }
+
+    if (sendEmail && !customerEmail.trim()) {
+      setError('Add a customer email address before selecting automatic email.');
+      return;
+    }
+
+    if (sendSms && !customerPhoneNumber.trim()) {
+      setError('Add a customer phone number before selecting automatic SMS.');
+      return;
+    }
+
+    if (
+      sendWhatsApp &&
+      !customerWhatsAppNumber.trim() &&
+      !(customerHasWhatsApp && customerPhoneNumber.trim())
+    ) {
+      setError(
+        'Add a WhatsApp number, or mark the customer as using WhatsApp with a phone number.',
+      );
+      return;
+    }
+
     try {
       setSaving(true);
 
-      await api.post('/quotes', {
+      const createResponse = await api.post<{ id: string }>('/quotes', {
         customerId: null,
         customerName: customerName.trim(),
         customerCompanyName: customerCompanyName.trim() || null,
         customerEmail: customerEmail.trim() || null,
         customerPhoneNumber: customerPhoneNumber.trim() || null,
-        customerWhatsAppNumber: customerWhatsAppNumber.trim() || null,
+        customerWhatsAppNumber:
+          customerWhatsAppNumber.trim() || null,
         customerHasWhatsApp,
         customerAddress: customerAddress.trim() || null,
+        salespersonId: salespersonId || null,
         validUntil: validUntil || null,
         notes: notes.trim() || null,
-        depositRequired: depositRequired ? Number(depositRequired) : 0,
+        depositPercentage: pricing.depositPercentage,
+        depositRequired: null,
         items: preparedItems,
       });
 
-      await onCreated();
+      const channels: Array<'Email' | 'Sms' | 'WhatsApp'> = [];
+      if (sendEmail) channels.push('Email');
+      if (sendSms) channels.push('Sms');
+      if (sendWhatsApp) channels.push('WhatsApp');
+
+      const deliveryMessages: string[] = [];
+
+      for (const channel of channels) {
+        try {
+          const delivery = await api.post<PreparedDelivery>(
+            `/quotes/${createResponse.data.id}/delivery`,
+            { channel },
+          );
+
+          if (delivery.data.status === 'Sent') {
+            deliveryMessages.push(`${channel}: sent`);
+          } else if (
+            delivery.data.status === 'PendingProviderConfiguration'
+          ) {
+            deliveryMessages.push(
+              `${channel}: provider setup required`,
+            );
+          } else {
+            deliveryMessages.push(`${channel}: failed`);
+          }
+        } catch {
+          deliveryMessages.push(`${channel}: failed`);
+        }
+      }
+
+      const deliverySummary =
+        deliveryMessages.length > 0
+          ? ` · ${deliveryMessages.join(' · ')}`
+          : '';
+
+      await onCreated(
+        `Quote created successfully${deliverySummary}`,
+      );
     } catch {
       setError(
-        'Unable to create quote. Check the customer, products and quantities.',
+        'Unable to create quote. Check the customer, products, deposit and quantities.',
       );
     } finally {
       setSaving(false);
@@ -781,11 +912,15 @@ function CreateQuoteModal({
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/40 p-4">
-      <div className="mx-auto my-6 w-full max-w-4xl rounded-2xl bg-white shadow-2xl">
+      <div className="mx-auto my-6 w-full max-w-5xl rounded-2xl bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-gray-200 px-6 py-5">
           <div>
-            <p className="text-sm font-medium text-blue-600">Sales pipeline</p>
-            <h2 className="mt-1 text-xl font-bold text-gray-900">Create Quote</h2>
+            <p className="text-sm font-medium text-blue-600">
+              Sales pipeline
+            </p>
+            <h2 className="mt-1 text-xl font-bold text-gray-900">
+              Create Quote
+            </h2>
           </div>
           <button
             onClick={onClose}
@@ -804,25 +939,86 @@ function CreateQuoteModal({
           )}
 
           <section>
-            <h3 className="mb-3 font-semibold text-gray-900">Customer</h3>
+            <div className="mb-3 flex items-center justify-between gap-4">
+              <h3 className="font-semibold text-gray-900">
+                Customer & salesperson
+              </h3>
+              <span className="text-xs text-gray-400">
+                Salesperson is stored on the quote and eventual sale.
+              </span>
+            </div>
+
             <div className="grid gap-4 md:grid-cols-2">
-              <Input label="Customer name" required value={customerName} onChange={setCustomerName} />
-              <Input label="Company" value={customerCompanyName} onChange={setCustomerCompanyName} />
-              <Input label="Email" type="email" value={customerEmail} onChange={setCustomerEmail} />
-              <Input label="Phone" value={customerPhoneNumber} onChange={setCustomerPhoneNumber} />
-              <Input label="WhatsApp number" value={customerWhatsAppNumber} onChange={setCustomerWhatsAppNumber} />
+              <Input
+                label="Customer name"
+                required
+                value={customerName}
+                onChange={setCustomerName}
+              />
+              <Input
+                label="Company"
+                value={customerCompanyName}
+                onChange={setCustomerCompanyName}
+              />
+
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-gray-700">
+                  Salesperson
+                </span>
+                <select
+                  value={salespersonId}
+                  onChange={(event) =>
+                    setSalespersonId(event.target.value)
+                  }
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                >
+                  <option value="">
+                    Current signed-in user
+                  </option>
+                  {staff.map((member) => (
+                    <option key={member.id} value={member.id}>
+                      {member.fullName} — {member.role}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <Input
+                label="Email"
+                type="email"
+                value={customerEmail}
+                onChange={setCustomerEmail}
+              />
+              <Input
+                label="Phone"
+                value={customerPhoneNumber}
+                onChange={setCustomerPhoneNumber}
+              />
+              <Input
+                label="WhatsApp number"
+                value={customerWhatsAppNumber}
+                onChange={setCustomerWhatsAppNumber}
+              />
+
               <label className="flex items-center gap-3 rounded-lg border border-gray-200 px-4 py-3">
                 <input
                   type="checkbox"
                   checked={customerHasWhatsApp}
-                  onChange={(event) => setCustomerHasWhatsApp(event.target.checked)}
+                  onChange={(event) =>
+                    setCustomerHasWhatsApp(event.target.checked)
+                  }
                 />
                 <span className="text-sm font-medium text-gray-700">
                   Customer uses WhatsApp
                 </span>
               </label>
+
               <div className="md:col-span-2">
-                <Input label="Customer address" value={customerAddress} onChange={setCustomerAddress} />
+                <Input
+                  label="Customer address"
+                  value={customerAddress}
+                  onChange={setCustomerAddress}
+                />
               </div>
             </div>
           </section>
@@ -849,13 +1045,17 @@ function CreateQuoteModal({
                 return (
                   <div
                     key={index}
-                    className="grid gap-3 rounded-lg border border-gray-200 p-4 md:grid-cols-[1fr_130px_160px_auto]"
+                    className="grid gap-3 rounded-lg border border-gray-200 p-4 md:grid-cols-[1fr_120px_170px_auto]"
                   >
                     <select
                       required
                       value={item.productId}
                       onChange={(event) =>
-                        updateItem(index, 'productId', event.target.value)
+                        updateItem(
+                          index,
+                          'productId',
+                          event.target.value,
+                        )
                       }
                       className="rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900"
                     >
@@ -874,7 +1074,11 @@ function CreateQuoteModal({
                       step="1"
                       value={item.quantity}
                       onChange={(event) =>
-                        updateItem(index, 'quantity', event.target.value)
+                        updateItem(
+                          index,
+                          'quantity',
+                          event.target.value,
+                        )
                       }
                       className="rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900"
                       placeholder="Qty"
@@ -886,11 +1090,17 @@ function CreateQuoteModal({
                       step="0.01"
                       value={item.unitPrice}
                       onChange={(event) =>
-                        updateItem(index, 'unitPrice', event.target.value)
+                        updateItem(
+                          index,
+                          'unitPrice',
+                          event.target.value,
+                        )
                       }
                       className="rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900"
                       placeholder={
-                        product ? `Default ${product.price.toFixed(2)}` : 'Unit price'
+                        product
+                          ? `Default ${currency} ${product.price.toFixed(2)}`
+                          : 'Unit price'
                       }
                     />
 
@@ -908,31 +1118,140 @@ function CreateQuoteModal({
             </div>
           </section>
 
-          <section className="grid gap-4 md:grid-cols-2">
-            <Input
-              label="Valid until"
-              type="date"
-              value={validUntil}
-              onChange={setValidUntil}
-            />
-            <Input
-              label="Deposit required"
-              type="number"
-              value={depositRequired}
-              onChange={setDepositRequired}
-            />
-            <div className="md:col-span-2">
-            <label className="block">
-                            <span className="mb-2 block text-sm font-medium text-gray-700">
-                              Notes
-                            </span>
-                            <textarea
-                              rows={3}
-                              value={notes}
-                              onChange={(event) => setNotes(event.target.value)}
-                              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900"
-                            />
-                          </label>
+          <section className="grid gap-5 lg:grid-cols-[1fr_360px]">
+            <div className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <Input
+                  label="Valid until"
+                  type="date"
+                  value={validUntil}
+                  onChange={setValidUntil}
+                />
+
+                <label className="block">
+                  <span className="mb-2 block text-sm font-medium text-gray-700">
+                    Deposit percentage
+                  </span>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={depositPercentage}
+                      onChange={(event) =>
+                        setDepositPercentage(event.target.value)
+                      }
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2.5 pr-9 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">
+                      %
+                    </span>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {[20, 30, 50].map((percentage) => (
+                      <button
+                        key={percentage}
+                        type="button"
+                        onClick={() =>
+                          setDepositPercentage(String(percentage))
+                        }
+                        className="rounded-full border border-gray-200 px-2.5 py-1 text-xs font-semibold text-gray-600 hover:border-blue-300 hover:text-blue-700"
+                      >
+                        {percentage}%
+                      </button>
+                    ))}
+                  </div>
+                </label>
+              </div>
+
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-gray-700">
+                  Notes
+                </span>
+                <textarea
+                  rows={4}
+                  value={notes}
+                  onChange={(event) => setNotes(event.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                />
+              </label>
+
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                <p className="text-sm font-semibold text-gray-900">
+                  Send immediately after creation
+                </p>
+                <p className="mt-1 text-xs text-gray-500">
+                  Configured providers send automatically. If a provider is not
+                  configured, the quote is still created and marked accordingly.
+                </p>
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                  <ChannelCheck
+                    label="Email"
+                    checked={sendEmail}
+                    onChange={setSendEmail}
+                    disabled={!customerEmail.trim()}
+                  />
+                  <ChannelCheck
+                    label="SMS"
+                    checked={sendSms}
+                    onChange={setSendSms}
+                    disabled={!customerPhoneNumber.trim()}
+                  />
+                  <ChannelCheck
+                    label="WhatsApp"
+                    checked={sendWhatsApp}
+                    onChange={setSendWhatsApp}
+                    disabled={
+                      !customerWhatsAppNumber.trim() &&
+                      !(customerHasWhatsApp &&
+                        customerPhoneNumber.trim())
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="h-fit rounded-xl border border-blue-100 bg-blue-50 p-5">
+              <p className="text-sm font-semibold text-blue-950">
+                Quote total
+              </p>
+
+              <div className="mt-4 space-y-3 text-sm">
+                <QuoteMoneyRow
+                  label="Subtotal"
+                  value={pricing.subtotal}
+                  currency={currency}
+                />
+                {pricing.vatRate > 0 && (
+                  <QuoteMoneyRow
+                    label={`VAT (${pricing.vatRate}%)`}
+                    value={pricing.vatAmount}
+                    currency={currency}
+                  />
+                )}
+                <div className="flex items-center justify-between border-t border-blue-200 pt-3">
+                  <span className="font-semibold text-blue-900">
+                    Total
+                  </span>
+                  <span className="text-xl font-bold text-blue-950">
+                    {money(pricing.total, currency)}
+                  </span>
+                </div>
+                <QuoteMoneyRow
+                  label={`Deposit (${pricing.depositPercentage}%)`}
+                  value={pricing.depositAmount}
+                  currency={currency}
+                  strong
+                />
+                <QuoteMoneyRow
+                  label="Balance after deposit"
+                  value={pricing.balanceAfterDeposit}
+                  currency={currency}
+                  strong
+                />
+              </div>
             </div>
           </section>
 
@@ -946,10 +1265,14 @@ function CreateQuoteModal({
             </button>
             <button
               type="submit"
-              disabled={saving}
+              disabled={saving || pricing.total <= 0}
               className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white disabled:bg-blue-400"
             >
-              {saving ? <Loader2 className="animate-spin" size={17} /> : <FileText size={17} />}
+              {saving ? (
+                <Loader2 className="animate-spin" size={17} />
+              ) : (
+                <FileText size={17} />
+              )}
               {saving ? 'Creating...' : 'Create Quote'}
             </button>
           </div>
@@ -957,6 +1280,70 @@ function CreateQuoteModal({
       </div>
     </div>
   );
+}
+
+function ChannelCheck({
+  label,
+  checked,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (value: boolean) => void;
+  disabled: boolean;
+}) {
+  return (
+    <label
+      className={
+        disabled
+          ? 'flex cursor-not-allowed items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-300'
+          : 'flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-medium text-gray-700'
+      }
+    >
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.checked)}
+      />
+      {label}
+    </label>
+  );
+}
+
+function QuoteMoneyRow({
+  label,
+  value,
+  currency,
+  strong = false,
+}: {
+  label: string;
+  value: number;
+  currency: string;
+  strong?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <span className={strong ? 'font-semibold text-blue-900' : 'text-blue-800'}>
+        {label}
+      </span>
+      <span className={strong ? 'font-bold text-blue-950' : 'font-medium text-blue-950'}>
+        {money(value, currency)}
+      </span>
+    </div>
+  );
+}
+
+function roundMoney(value: number) {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+function money(value: number, currency: string) {
+  return `${currency} ${value.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
 }
 
 function QuoteDetails({ quote }: { quote: Quote }) {
