@@ -9,4 +9,5 @@ public interface IQuoteService
     Task<Guid> CreateAsync(CreateQuoteRequest request, string createdBy);
     Task<QuoteDto?> UpdateStatusAsync(Guid id, UpdateQuoteStatusRequest request);
     Task<QuoteConversionDto?> ConvertToSaleAsync(Guid id);
+    Task<QuoteDto?> RecordPaymentAsync(Guid id, RecordQuotePaymentRequest request, string recordedBy);
 }
