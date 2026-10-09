@@ -142,6 +142,7 @@ public class DocumentDeliveryService : IDocumentDeliveryService
             .Include(item => item.Customer)
             .Include(item => item.Items)
                 .ThenInclude(item => item.Product)
+            .Include(item => item.Payments)
             .FirstOrDefaultAsync(item => item.Id == quoteId)
             ?? throw new KeyNotFoundException("Quote was not found.");
 
@@ -310,6 +311,24 @@ public class DocumentDeliveryService : IDocumentDeliveryService
 
         builder.AppendLine(
             $"TOTAL: {profile.CurrencyCode} {quote.Total.ToString("0.00", CultureInfo.InvariantCulture)}");
+
+        var amountPaid = quote.Payments.Sum(payment => payment.Amount);
+        var balanceDue = Math.Max(0m, quote.Total - amountPaid);
+
+        if (quote.DepositRequired > 0)
+        {
+            builder.AppendLine(
+                $"Deposit required: {profile.CurrencyCode} {quote.DepositRequired.ToString("0.00", CultureInfo.InvariantCulture)}");
+        }
+
+        if (amountPaid > 0)
+        {
+            builder.AppendLine(
+                $"Amount paid: {profile.CurrencyCode} {amountPaid.ToString("0.00", CultureInfo.InvariantCulture)}");
+        }
+
+        builder.AppendLine(
+            $"Balance due: {profile.CurrencyCode} {balanceDue.ToString("0.00", CultureInfo.InvariantCulture)}");
 
         var bankDetails = BuildBankDetails(profile);
         if (!string.IsNullOrWhiteSpace(bankDetails))
