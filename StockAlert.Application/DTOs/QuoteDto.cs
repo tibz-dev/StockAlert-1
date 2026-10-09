@@ -15,6 +15,11 @@ public record QuoteDto(
     decimal VatRate,
     decimal VatAmount,
     decimal Total,
+    decimal DepositRequired,
+    decimal AmountPaid,
+    decimal BalanceDue,
+    string PaymentStatus,
     string? CreatedBy,
-    List<QuoteItemDto> Items
+    List<QuoteItemDto> Items,
+    List<QuotePaymentDto> Payments
 );
