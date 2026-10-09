@@ -7,7 +7,7 @@ using StockAlert.Application.Interfaces;
 
 namespace StockAlert.API.Controllers;
 
-[Authorize]
+[Authorize(Roles = "Owner,Manager")]
 [ApiController]
 [Route("api/[controller]")]
 public class AuditController : ControllerBase
