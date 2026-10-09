@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   AlertTriangle,
+  BriefcaseBusiness,
   CalendarDays,
   Download,
   FileBarChart,
@@ -24,6 +25,13 @@ interface TopSellingProduct {
   stockQuantity: number;
 }
 
+interface SalespersonPerformance {
+  salespersonName: string;
+  saleCount: number;
+  unitsSold: number;
+  revenue: number;
+}
+
 interface ReportSummary {
   fromDate: string | null;
   toDate: string | null;
@@ -38,6 +46,7 @@ interface ReportSummary {
   unitsAdded: number;
   unitsRemoved: number;
   topSellingProducts: TopSellingProduct[];
+  salespeople: SalespersonPerformance[];
 }
 
 type QuickRange = 'today' | '7d' | '30d' | '90d' | 'all' | 'custom';
@@ -356,6 +365,62 @@ export default function ReportsPage() {
                   </div>
                 </section>
               </div>
+
+              <section className="mt-6 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+                <div className="mb-5 flex items-start gap-3">
+                  <div className="rounded-lg bg-blue-50 p-2 text-blue-600">
+                    <BriefcaseBusiness size={18} />
+                  </div>
+                  <div>
+                    <h2 className="font-semibold text-gray-900">
+                      Salesperson performance
+                    </h2>
+                    <p className="mt-1 text-sm text-gray-500">
+                      Performance for the selected reporting period.
+                    </p>
+                  </div>
+                </div>
+
+                {summary.salespeople.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[640px] text-left">
+                      <thead className="border-b border-gray-200 text-xs uppercase tracking-wide text-gray-400">
+                        <tr>
+                          <th className="pb-3 font-semibold">Salesperson</th>
+                          <th className="pb-3 font-semibold">Transactions</th>
+                          <th className="pb-3 font-semibold">Units sold</th>
+                          <th className="pb-3 font-semibold">Revenue</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {summary.salespeople.map((salesperson) => (
+                          <tr
+                            key={salesperson.salespersonName}
+                            className="border-b border-gray-100 last:border-0"
+                          >
+                            <td className="py-3 font-medium text-gray-900">
+                              {salesperson.salespersonName}
+                            </td>
+                            <td className="py-3 text-sm text-gray-700">
+                              {salesperson.saleCount}
+                            </td>
+                            <td className="py-3 text-sm text-gray-700">
+                              {salesperson.unitsSold}
+                            </td>
+                            <td className="py-3 text-sm font-semibold text-gray-900">
+                              {formatAmount(salesperson.revenue)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="rounded-lg bg-gray-50 p-6 text-center text-sm text-gray-500">
+                    No salesperson activity was recorded in this period.
+                  </div>
+                )}
+              </section>
 
               <section className="mt-6 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
                 <div className="mb-5">
