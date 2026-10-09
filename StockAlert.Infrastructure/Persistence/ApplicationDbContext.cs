@@ -31,6 +31,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
     public DbSet<Quote> Quotes => Set<Quote>();
     public DbSet<QuoteItem> QuoteItems => Set<QuoteItem>();
     public DbSet<DeliveryLog> DeliveryLogs => Set<DeliveryLog>();
+    public DbSet<QuotePayment> QuotePayments => Set<QuotePayment>();
     
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
@@ -134,6 +135,9 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
             entity.Property(quote => quote.Total)
                 .HasPrecision(18, 2);
 
+            entity.Property(quote => quote.DepositRequired)
+                .HasPrecision(18, 2);
+
             entity.HasIndex(quote => quote.QuoteNumber)
                 .IsUnique();
 
@@ -162,6 +166,23 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
                 .WithMany(product => product.QuoteItems)
                 .HasForeignKey(item => item.ProductId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<QuotePayment>(entity =>
+        {
+            entity.Property(payment => payment.Amount)
+                .HasPrecision(18, 2);
+
+            entity.Property(payment => payment.Method)
+                .HasMaxLength(50);
+
+            entity.Property(payment => payment.Reference)
+                .HasMaxLength(100);
+
+            entity.HasOne(payment => payment.Quote)
+                .WithMany(quote => quote.Payments)
+                .HasForeignKey(payment => payment.QuoteId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<DeliveryLog>(entity =>
