@@ -8,7 +8,7 @@ public interface IProductService
     Task<ProductDto?> GetProductByIdAsync(Guid id);
     Task<Guid> CreateProductAsync(CreateProductRequest request);
     Task<bool> UpdateProductAsync(Guid id, UpdateProductRequest request);
-    Task<bool> DeleteProductAsync(Guid id);
+    Task<bool> DeleteProductAsync(Guid id, string performedBy);
     Task<bool> AdjustStockAsync(Guid id, AdjustStockRequest request, string performedBy);
 
     Task<SaleReceiptDto?> RecordSaleAsync(CreateSaleRequest request, string salespersonFallback);
