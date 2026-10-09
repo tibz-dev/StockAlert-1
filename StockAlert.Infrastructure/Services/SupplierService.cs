@@ -31,6 +31,7 @@ public class SupplierService : ISupplierService
             {
                 product.Id,
                 product.SupplierId,
+                product.Name,
                 product.StockQuantity
             })
             .ToListAsync();
@@ -72,12 +73,7 @@ public class SupplierService : ISupplierService
                     supplierProducts.Count,
                     lowStockCount,
                     supplierProducts
-                        .Select(product => product.Id)
-                        .Join(
-                            _context.Products.AsNoTracking(),
-                            id => id,
-                            product => product.Id,
-                            (id, product) => product.Name)
+                        .Select(product => product.Name)
                         .OrderBy(name => name)
                         .ToList()
                 );
