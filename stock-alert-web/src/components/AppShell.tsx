@@ -25,6 +25,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const isPublicRoute = pathname === '/login';
+  const isPrintRoute = pathname.endsWith('/print');
   const [checkingAuth, setCheckingAuth] = useState(!isPublicRoute);
 
   useEffect(() => {
@@ -55,7 +56,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (isPublicRoute) {
+  if (isPublicRoute || isPrintRoute) {
     return <main className="min-h-screen w-full">{children}</main>;
   }
 
