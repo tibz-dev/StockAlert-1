@@ -3,6 +3,7 @@ namespace StockAlert.Application.DTOs;
 public record CreateSaleRequest(
     Guid ProductId,
     int Quantity,
+    Guid? SalespersonId = null,
     string? CustomerName = null,
     string? CustomerCompanyName = null,
     string? CustomerEmail = null,
