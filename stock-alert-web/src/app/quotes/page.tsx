@@ -4,12 +4,14 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   CheckCircle2,
   ChevronDown,
+  CreditCard,
   ChevronUp,
   FileText,
   Loader2,
   Mail,
   MessageCircle,
   Plus,
+  Printer,
   ShoppingCart,
   Smartphone,
   X,
@@ -36,6 +38,7 @@ export default function QuotesPage() {
   const [success, setSuccess] = useState('');
   const [convertedReceipt, setConvertedReceipt] =
     useState<QuoteConversion | null>(null);
+  const [paymentQuote, setPaymentQuote] = useState<Quote | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -208,6 +211,7 @@ export default function QuotesPage() {
                   <th className="p-4 text-sm font-semibold text-gray-600">Valid until</th>
                   <th className="p-4 text-sm font-semibold text-gray-600">Items</th>
                   <th className="p-4 text-sm font-semibold text-gray-600">Total</th>
+                  <th className="p-4 text-sm font-semibold text-gray-600">Payment</th>
                   <th className="p-4 text-sm font-semibold text-gray-600">Status</th>
                   <th className="p-4 text-sm font-semibold text-gray-600">Actions</th>
                 </tr>
@@ -260,10 +264,42 @@ export default function QuotesPage() {
                           {formatAmount(quote.total)}
                         </td>
                         <td className="p-4">
+                          <PaymentBadge status={quote.paymentStatus} />
+                          <div className="mt-1 text-xs text-gray-400">
+                            {formatAmount(quote.amountPaid)} paid
+                          </div>
+                        </td>
+                        <td className="p-4">
                           <StatusBadge status={quote.status} />
                         </td>
                         <td className="p-4">
                           <div className="flex flex-wrap gap-2">
+                            <ActionButton
+                              disabled={isBusy}
+                              onClick={() =>
+                                window.open(
+                                  `/quotes/${quote.id}/print`,
+                                  '_blank',
+                                  'noopener,noreferrer',
+                                )
+                              }
+                              icon={<Printer size={13} />}
+                              label="Print"
+                            />
+
+                            {quote.status !== 'Converted' &&
+                              quote.status !== 'Cancelled' &&
+                              quote.status !== 'Rejected' &&
+                              quote.status !== 'Expired' &&
+                              quote.balanceDue > 0 && (
+                                <ActionButton
+                                  disabled={isBusy}
+                                  onClick={() => setPaymentQuote(quote)}
+                                  icon={<CreditCard size={13} />}
+                                  label="Payment"
+                                />
+                              )}
+
                             {quote.customer.email && (
                               <ActionButton
                                 disabled={isBusy}
@@ -330,7 +366,7 @@ export default function QuotesPage() {
 
                       {expanded && (
                         <tr key={`${quote.id}-details`}>
-                          <td colSpan={7} className="bg-slate-50 p-5">
+                          <td colSpan={8} className="bg-slate-50 p-5">
                             <QuoteDetails quote={quote} />
                           </td>
                         </tr>
@@ -341,7 +377,7 @@ export default function QuotesPage() {
 
                 {quotes.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="p-12 text-center text-sm text-gray-500">
+                    <td colSpan={8} className="p-12 text-center text-sm text-gray-500">
                       No quotes yet. Create the first quote to start tracking pipeline demand.
                     </td>
                   </tr>
@@ -351,6 +387,19 @@ export default function QuotesPage() {
           </div>
         </div>
       </div>
+
+      {paymentQuote && (
+        <RecordPaymentModal
+          quote={paymentQuote}
+          onClose={() => setPaymentQuote(null)}
+          onRecorded={async () => {
+            setPaymentQuote(null);
+            await load();
+            setSuccess('Payment recorded successfully.');
+            window.setTimeout(() => setSuccess(''), 3000);
+          }}
+        />
+      )}
 
       {convertedReceipt && (
         <ConvertedReceiptModal
@@ -371,6 +420,123 @@ export default function QuotesPage() {
           }}
         />
       )}
+    </div>
+  );
+}
+
+function RecordPaymentModal({
+  quote,
+  onClose,
+  onRecorded,
+}: {
+  quote: Quote;
+  onClose: () => void;
+  onRecorded: () => Promise<void>;
+}) {
+  const [amount, setAmount] = useState(
+    quote.depositRequired > quote.amountPaid
+      ? String(quote.depositRequired - quote.amountPaid)
+      : String(quote.balanceDue),
+  );
+  const [method, setMethod] = useState('Bank Transfer');
+  const [reference, setReference] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const parsedAmount = Number(amount);
+
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      setError('Enter a valid payment amount.');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setError('');
+
+      await api.post(`/quotes/${quote.id}/payments`, {
+        amount: parsedAmount,
+        method,
+        reference: reference.trim() || null,
+        paidAt: null,
+      });
+
+      await onRecorded();
+    } catch {
+      setError('Unable to record payment. Check the outstanding balance.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-start justify-between border-b border-gray-200 px-6 py-5">
+          <div>
+            <p className="text-sm font-medium text-blue-600">Quote payment</p>
+            <h2 className="mt-1 text-xl font-bold text-gray-900">
+              Record Payment
+            </h2>
+            <p className="mt-1 text-sm text-gray-500">
+              {quote.quoteNumber} · Balance {formatAmount(quote.balanceDue)}
+            </p>
+          </div>
+          <button onClick={onClose} className="rounded-lg p-2 text-gray-400 hover:bg-gray-100">
+            <X size={20} />
+          </button>
+        </div>
+
+        <form onSubmit={submit} className="space-y-4 p-6">
+          {error && (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
+          <Input
+            label="Amount"
+            type="number"
+            value={amount}
+            onChange={setAmount}
+            required
+          />
+
+          <label className="block">
+            <span className="mb-2 block text-sm font-medium text-gray-700">
+              Method
+            </span>
+            <select
+              value={method}
+              onChange={(event) => setMethod(event.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900"
+            >
+              <option>Bank Transfer</option>
+              <option>Cash</option>
+              <option>Card</option>
+              <option>Mobile Payment</option>
+              <option>Other</option>
+            </select>
+          </label>
+
+          <Input
+            label="Reference"
+            value={reference}
+            onChange={setReference}
+          />
+
+          <button
+            type="submit"
+            disabled={saving}
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white disabled:bg-blue-400"
+          >
+            {saving ? <Loader2 className="animate-spin" size={17} /> : <CreditCard size={17} />}
+            {saving ? 'Recording...' : 'Record Payment'}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
@@ -489,6 +655,7 @@ function CreateQuoteModal({
   const [customerAddress, setCustomerAddress] = useState('');
   const [validUntil, setValidUntil] = useState('');
   const [notes, setNotes] = useState('');
+  const [depositRequired, setDepositRequired] = useState('');
   const [items, setItems] = useState<QuoteFormItem[]>([
     { productId: '', quantity: '1', unitPrice: '' },
   ]);
@@ -556,6 +723,7 @@ function CreateQuoteModal({
         customerAddress: customerAddress.trim() || null,
         validUntil: validUntil || null,
         notes: notes.trim() || null,
+        depositRequired: depositRequired ? Number(depositRequired) : 0,
         items: preparedItems,
       });
 
@@ -705,17 +873,25 @@ function CreateQuoteModal({
               value={validUntil}
               onChange={setValidUntil}
             />
+            <Input
+              label="Deposit required"
+              type="number"
+              value={depositRequired}
+              onChange={setDepositRequired}
+            />
+            <div className="md:col-span-2">
             <label className="block">
-              <span className="mb-2 block text-sm font-medium text-gray-700">
-                Notes
-              </span>
-              <textarea
-                rows={3}
-                value={notes}
-                onChange={(event) => setNotes(event.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900"
-              />
-            </label>
+                            <span className="mb-2 block text-sm font-medium text-gray-700">
+                              Notes
+                            </span>
+                            <textarea
+                              rows={3}
+                              value={notes}
+                              onChange={(event) => setNotes(event.target.value)}
+                              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900"
+                            />
+                          </label>
+            </div>
           </section>
 
           <div className="flex justify-end gap-3 border-t border-gray-100 pt-5">
@@ -782,7 +958,45 @@ function QuoteDetails({ quote }: { quote: Quote }) {
             <span>Total</span>
             <span>{formatAmount(quote.total)}</span>
           </div>
+          {quote.depositRequired > 0 && (
+            <MoneyRow label="Deposit required" value={quote.depositRequired} />
+          )}
+          <MoneyRow label="Amount paid" value={quote.amountPaid} />
+          <MoneyRow label="Balance due" value={quote.balanceDue} />
+          <div className="pt-2">
+            <PaymentBadge status={quote.paymentStatus} />
+          </div>
         </div>
+
+        {quote.payments.length > 0 && (
+          <div className="mt-4 border-t border-gray-100 pt-4">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
+              Payments
+            </p>
+            <div className="space-y-2">
+              {quote.payments.map((payment) => (
+                <div
+                  key={payment.id}
+                  className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 text-xs"
+                >
+                  <div>
+                    <span className="font-semibold text-gray-800">
+                      {payment.method}
+                    </span>
+                    {payment.reference && (
+                      <span className="ml-2 text-gray-400">
+                        {payment.reference}
+                      </span>
+                    )}
+                  </div>
+                  <span className="font-bold text-gray-900">
+                    {formatAmount(payment.amount)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {quote.notes && (
           <div className="mt-4 rounded-lg bg-gray-50 p-3 text-sm text-gray-600">
@@ -791,6 +1005,24 @@ function QuoteDetails({ quote }: { quote: Quote }) {
         )}
       </div>
     </div>
+  );
+}
+
+function PaymentBadge({ status }: { status: string }) {
+  const styles: Record<string, string> = {
+    Paid: 'bg-green-50 text-green-700',
+    'Deposit Paid': 'bg-blue-50 text-blue-700',
+    'Partially Paid': 'bg-amber-50 text-amber-700',
+    'Deposit Outstanding': 'bg-red-50 text-red-700',
+    Unpaid: 'bg-gray-100 text-gray-600',
+  };
+
+  return (
+    <span
+      className={`rounded-full px-2.5 py-1 text-xs font-bold ${styles[status] ?? styles.Unpaid}`}
+    >
+      {status}
+    </span>
   );
 }
 
