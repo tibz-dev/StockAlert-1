@@ -7,5 +7,7 @@ public record PreparedDeliveryDto(
     string Channel,
     string Destination,
     string Status,
-    string ActionUrl
+    string ActionUrl,
+    string? ProviderReference,
+    string? ErrorMessage
 );
