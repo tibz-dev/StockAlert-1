@@ -12,13 +12,16 @@ public class ProductService : IProductService
 
     private readonly IApplicationDbContext _context;
     private readonly IExternalStockService _externalStockService;
+    private readonly IBusinessProfileService _businessProfileService;
 
     public ProductService(
         IApplicationDbContext context,
-        IExternalStockService externalStockService)
+        IExternalStockService externalStockService,
+        IBusinessProfileService businessProfileService)
     {
         _context = context;
         _externalStockService = externalStockService;
+        _businessProfileService = businessProfileService;
     }
 
     public async Task<IEnumerable<ProductDto>> GetAllProductsAsync()
@@ -262,8 +265,18 @@ public class ProductService : IProductService
         }
 
         var customer = await ResolveSaleCustomerAsync(request);
+        var business = await _businessProfileService.GetAsync();
 
         product.StockQuantity -= request.Quantity;
+
+        var subtotal = product.Price * request.Quantity;
+        var vatAmount = business.IsVatRegistered
+            ? decimal.Round(
+                subtotal * business.DefaultVatRate / 100m,
+                2,
+                MidpointRounding.AwayFromZero)
+            : 0m;
+        var totalPrice = subtotal + vatAmount;
 
         var sale = new Sale
         {
@@ -274,7 +287,7 @@ public class ProductService : IProductService
             ReceiptNumber = GenerateReceiptNumber(),
             Quantity = request.Quantity,
             SaleDate = DateTime.UtcNow,
-            TotalPrice = product.Price * request.Quantity
+            TotalPrice = totalPrice
         };
 
         _context.Sales.Add(sale);
