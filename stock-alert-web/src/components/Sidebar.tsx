@@ -58,6 +58,7 @@ const menuItems = [
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const roles = getSessionInfo().roles;
 
   const handleLogout = () => {
     window.localStorage.removeItem('token');
@@ -77,7 +78,16 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex-1 space-y-2 px-4">
-        {menuItems.map((item) => {
+        {menuItems
+          .filter(
+            (item) =>
+              !('roles' in item) ||
+              !item.roles ||
+              item.roles.some((role) =>
+                roles.includes(role),
+              ),
+          )
+          .map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
 
