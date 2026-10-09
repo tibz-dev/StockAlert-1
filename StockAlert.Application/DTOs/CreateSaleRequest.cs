@@ -10,5 +10,10 @@ public record CreateSaleRequest(
     string? CustomerPhoneNumber = null,
     string? CustomerWhatsAppNumber = null,
     bool CustomerHasWhatsApp = false,
-    string? CustomerAddress = null
+    string? CustomerAddress = null,
+    Guid? ClientOperationId = null,
+    string? DeviceId = null,
+    DateTime? ClientCreatedAt = null,
+    bool WasQueuedOffline = false,
+    decimal? OfflineUnitPrice = null
 );
