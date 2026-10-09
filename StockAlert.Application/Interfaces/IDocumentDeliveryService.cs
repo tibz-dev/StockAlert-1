@@ -4,6 +4,8 @@ namespace StockAlert.Application.Interfaces;
 
 public interface IDocumentDeliveryService
 {
+    Task<ReceiptDocumentDto?> GetReceiptAsync(Guid saleId);
+
     Task<PreparedDeliveryDto> PrepareReceiptAsync(
         Guid saleId,
         PrepareDeliveryRequest request);
