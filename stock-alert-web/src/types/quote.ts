@@ -21,6 +21,15 @@ export interface QuoteItem {
   availableQuantity: number;
 }
 
+export interface QuotePayment {
+  id: string;
+  amount: number;
+  method: string;
+  reference: string | null;
+  paidAt: string;
+  recordedBy: string | null;
+}
+
 export interface Quote {
   id: string;
   quoteNumber: string;
@@ -36,8 +45,13 @@ export interface Quote {
   vatRate: number;
   vatAmount: number;
   total: number;
+  depositRequired: number;
+  amountPaid: number;
+  balanceDue: number;
+  paymentStatus: string;
   createdBy: string | null;
   items: QuoteItem[];
+  payments: QuotePayment[];
 }
 
 export interface PreparedDelivery {
