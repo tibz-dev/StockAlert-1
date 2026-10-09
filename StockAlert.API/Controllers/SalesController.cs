@@ -51,6 +51,16 @@ public class SalesController : ControllerBase
         }
     }
 
+    [HttpGet("{id:guid}/receipt")]
+    public async Task<IActionResult> GetReceipt(Guid id)
+    {
+        var receipt = await _deliveryService.GetReceiptAsync(id);
+
+        return receipt == null
+            ? NotFound(new { message = "Receipt not found." })
+            : Ok(receipt);
+    }
+
     [HttpPost("{id:guid}/receipt/delivery")]
     public async Task<IActionResult> PrepareReceiptDelivery(
         Guid id,
