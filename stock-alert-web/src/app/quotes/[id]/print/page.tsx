@@ -164,9 +164,15 @@ export default function QuotePrintPage() {
             <p className="mt-2 text-sm text-gray-600">
               Status: <strong>{quote.paymentStatus}</strong>
             </p>
+            {quote.salespersonName && (
+              <p className="text-sm text-gray-600">
+                Salesperson: <strong>{quote.salespersonName}</strong>
+              </p>
+            )}
             {quote.depositRequired > 0 && (
               <p className="text-sm text-gray-600">
-                Deposit required: {money(quote.depositRequired, business.currencyCode)}
+                Deposit required ({quote.depositPercentage}%):{' '}
+                {money(quote.depositRequired, business.currencyCode)}
               </p>
             )}
             <p className="text-sm text-gray-600">
