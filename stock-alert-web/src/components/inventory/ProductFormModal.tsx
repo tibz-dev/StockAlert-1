@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, type FormEvent } from 'react';
-import { Loader2, PackagePlus, Save, X } from 'lucide-react';
+import { Barcode, Loader2, PackagePlus, Save, Search, X } from 'lucide-react';
 import api from '@/lib/api';
 import type { Product, ProductFormValues } from '@/types/inventory';
 import type { Supplier } from '@/types/supplier';
@@ -16,6 +16,7 @@ interface ProductFormModalProps {
 const emptyForm: ProductFormValues = {
   name: '',
   description: '',
+  barcode: '',
   price: '',
   stockQuantity: '0',
   categoryName: '',
@@ -31,6 +32,8 @@ export default function ProductFormModal({
 }: ProductFormModalProps) {
   const [form, setForm] = useState<ProductFormValues>(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [lookingUpBarcode, setLookingUpBarcode] = useState(false);
+  const [barcodeMessage, setBarcodeMessage] = useState('');
   const [error, setError] = useState('');
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
 
@@ -52,6 +55,7 @@ export default function ProductFormModal({
       setForm({
         name: product.name,
         description: product.description ?? '',
+        barcode: product.barcode ?? '',
         price: product.price.toString(),
         stockQuantity: product.stockQuantity.toString(),
         categoryName: product.categoryName,
@@ -66,6 +70,58 @@ export default function ProductFormModal({
 
   const updateField = (field: keyof ProductFormValues, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const lookupBarcode = async () => {
+    const barcode = form.barcode.trim();
+
+    if (!barcode) {
+      setBarcodeMessage('');
+      return;
+    }
+
+    try {
+      setLookingUpBarcode(true);
+      setError('');
+      setBarcodeMessage('');
+
+      const response = await api.get<{
+        barcode: string;
+        found: boolean;
+        isLocalProduct: boolean;
+        productId: string | null;
+        productName: string | null;
+        brand: string | null;
+        imageUrl: string | null;
+        source: string;
+      }>(`/barcodes/${barcode}`);
+
+      if (response.data.isLocalProduct) {
+        setBarcodeMessage(
+          `Already in StockAlert: ${response.data.productName ?? 'Existing product'}.`,
+        );
+        return;
+      }
+
+      if (response.data.found) {
+        if (!form.name.trim() && response.data.productName) {
+          updateField('name', response.data.productName);
+        }
+
+        setBarcodeMessage(
+          `Found via ${response.data.source}${response.data.brand ? ` · ${response.data.brand}` : ''}. Verify the details before saving.`,
+        );
+        return;
+      }
+
+      setBarcodeMessage(
+        'Barcode was not found externally. Enter the product details manually; StockAlert will remember this barcode after saving.',
+      );
+    } catch {
+      setError('Unable to look up this barcode.');
+    } finally {
+      setLookingUpBarcode(false);
+    }
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -96,6 +152,7 @@ export default function ProductFormModal({
         await api.post('/products', {
           name: form.name.trim(),
           description: form.description.trim() || null,
+          barcode: form.barcode.trim() || null,
           price,
           stockQuantity: Number(form.stockQuantity),
           categoryName: form.categoryName.trim(),
@@ -106,6 +163,7 @@ export default function ProductFormModal({
         await api.put(`/products/${product.id}`, {
           name: form.name.trim(),
           description: form.description.trim() || null,
+          barcode: form.barcode.trim() || null,
           price,
           categoryName: form.categoryName.trim(),
           supplierName: form.supplierName.trim(),
@@ -166,6 +224,52 @@ export default function ProductFormModal({
                 className="input"
                 placeholder="e.g. 2L Full Cream Milk"
               />
+            </Field>
+
+            <Field label="Barcode / GTIN / EAN">
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Barcode
+                    size={17}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                  />
+                  <input
+                    value={form.barcode}
+                    onChange={(event) => {
+                      updateField('barcode', event.target.value);
+                      setBarcodeMessage('');
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        void lookupBarcode();
+                      }
+                    }}
+                    className="input !pl-10"
+                    inputMode="numeric"
+                    placeholder="Scan barcode or enter digits"
+                    autoComplete="off"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void lookupBarcode()}
+                  disabled={lookingUpBarcode || !form.barcode.trim()}
+                  className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-40"
+                >
+                  {lookingUpBarcode ? (
+                    <Loader2 className="animate-spin" size={15} />
+                  ) : (
+                    <Search size={15} />
+                  )}
+                  Lookup
+                </button>
+              </div>
+              {barcodeMessage && (
+                <p className="mt-2 text-xs leading-5 text-blue-700">
+                  {barcodeMessage}
+                </p>
+              )}
             </Field>
 
             <Field label="Category">
