@@ -40,8 +40,13 @@ public class SalesController : ControllerBase
                 ?? User.FindFirstValue(ClaimTypes.NameIdentifier)
                 ?? "Unknown User";
 
+            var effectiveRequest =
+                User.IsInRole("Owner") || User.IsInRole("Manager")
+                    ? request
+                    : request with { SalespersonId = null };
+
             var receipt = await _productService.RecordSaleAsync(
-                request,
+                effectiveRequest,
                 salespersonFallback);
 
             if (receipt == null)
