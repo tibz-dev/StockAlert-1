@@ -26,6 +26,7 @@ public static class DependencyInjection
             {
                 options.User.RequireUniqueEmail = true;
             })
+            .AddRoles<IdentityRole>()
             .AddEntityFrameworkStores<ApplicationDbContext>();
 
         services.AddScoped<AuthService>();
