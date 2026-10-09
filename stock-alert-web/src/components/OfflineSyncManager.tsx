@@ -14,6 +14,7 @@ import {
   getOfflineSales,
   markOfflineSaleConflict,
   removeOfflineSale,
+  setOfflineCache,
   type OfflineSaleQueueItem,
 } from '@/lib/offline';
 
@@ -28,6 +29,28 @@ export default function OfflineSyncManager() {
       setQueue(await getOfflineSales());
     } catch {
       setQueue([]);
+    }
+  }, []);
+
+  const primeOfflineCache = useCallback(async () => {
+    if (!navigator.onLine) {
+      return;
+    }
+
+    try {
+      const [products, staff, business] = await Promise.all([
+        api.get('/products'),
+        api.get('/staff', { params: { activeOnly: true } }),
+        api.get('/business-profile'),
+      ]);
+
+      await Promise.all([
+        setOfflineCache('products', products.data),
+        setOfflineCache('staff', staff.data),
+        setOfflineCache('business', business.data),
+      ]);
+    } catch {
+      // Offline cache refresh is best-effort and must not block the app.
     }
   }, []);
 
@@ -112,6 +135,7 @@ export default function OfflineSyncManager() {
 
     const handleOnline = () => {
       setOnline(true);
+      void primeOfflineCache();
       void sync();
     };
 
@@ -131,6 +155,7 @@ export default function OfflineSyncManager() {
     );
 
     if (navigator.onLine) {
+      void primeOfflineCache();
       void sync();
     }
 
@@ -146,7 +171,7 @@ export default function OfflineSyncManager() {
         handleSyncRequest,
       );
     };
-  }, [refresh, sync]);
+  }, [primeOfflineCache, refresh, sync]);
 
   const conflicts = queue.filter(
     (item) => item.status === 'conflict',
