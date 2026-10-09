@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   AlertTriangle,
@@ -21,6 +21,7 @@ export default function OfflineSyncManager() {
   const [online, setOnline] = useState(true);
   const [queue, setQueue] = useState<OfflineSaleQueueItem[]>([]);
   const [syncing, setSyncing] = useState(false);
+  const syncingRef = useRef(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -34,7 +35,7 @@ export default function OfflineSyncManager() {
     if (
       typeof navigator === 'undefined' ||
       !navigator.onLine ||
-      syncing
+      syncingRef.current
     ) {
       return;
     }
@@ -49,6 +50,7 @@ export default function OfflineSyncManager() {
       return;
     }
 
+    syncingRef.current = true;
     setSyncing(true);
 
     try {
@@ -95,13 +97,14 @@ export default function OfflineSyncManager() {
         }
       }
     } finally {
+      syncingRef.current = false;
       setSyncing(false);
       await refresh();
       window.dispatchEvent(
         new CustomEvent('stockalert:sync-complete'),
       );
     }
-  }, [refresh, syncing]);
+  }, [refresh]);
 
   useEffect(() => {
     setOnline(navigator.onLine);
@@ -114,12 +117,17 @@ export default function OfflineSyncManager() {
 
     const handleOffline = () => setOnline(false);
     const handleQueue = () => void refresh();
+    const handleSyncRequest = () => void sync();
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     window.addEventListener(
       'stockalert:offline-queue-changed',
       handleQueue,
+    );
+    window.addEventListener(
+      'stockalert:request-sync',
+      handleSyncRequest,
     );
 
     if (navigator.onLine) {
@@ -132,6 +140,10 @@ export default function OfflineSyncManager() {
       window.removeEventListener(
         'stockalert:offline-queue-changed',
         handleQueue,
+      );
+      window.removeEventListener(
+        'stockalert:request-sync',
+        handleSyncRequest,
       );
     };
   }, [refresh, sync]);
