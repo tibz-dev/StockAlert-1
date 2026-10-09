@@ -88,6 +88,9 @@ public class QuoteService : IQuoteService
 
         var profile = await _businessProfileService.GetAsync();
         var customer = await ResolveCustomerAsync(request);
+        var salesperson = await ResolveSalespersonAsync(
+            request.SalespersonId,
+            createdBy);
 
         var productIds = request.Items
             .Select(item => item.ProductId)
@@ -122,6 +125,9 @@ public class QuoteService : IQuoteService
             CreatedAt = DateTime.UtcNow,
             ValidUntil = validUntil,
             Notes = Normalize(request.Notes),
+            SalespersonId = salesperson.Staff?.Id,
+            Salesperson = salesperson.Staff,
+            SalespersonName = salesperson.Name,
             CreatedBy = Normalize(createdBy)
         };
 
@@ -157,7 +163,35 @@ public class QuoteService : IQuoteService
             MidpointRounding.AwayFromZero);
         quote.Total = quote.Subtotal + quote.VatAmount;
 
-        var depositRequired = request.DepositRequired ?? 0m;
+        var depositPercentage = request.DepositPercentage;
+
+        if (depositPercentage.HasValue
+            && (depositPercentage.Value < 0
+                || depositPercentage.Value > 100))
+        {
+            throw new ArgumentException(
+                "Deposit percentage must be between 0 and 100.");
+        }
+
+        decimal depositRequired;
+
+        if (depositPercentage.HasValue)
+        {
+            depositRequired = decimal.Round(
+                quote.Total * depositPercentage.Value / 100m,
+                2,
+                MidpointRounding.AwayFromZero);
+        }
+        else
+        {
+            depositRequired = request.DepositRequired ?? 0m;
+            depositPercentage = quote.Total > 0 && depositRequired > 0
+                ? decimal.Round(
+                    depositRequired / quote.Total * 100m,
+                    2,
+                    MidpointRounding.AwayFromZero)
+                : 0m;
+        }
 
         if (depositRequired < 0 || depositRequired > quote.Total)
         {
@@ -165,6 +199,7 @@ public class QuoteService : IQuoteService
                 "Deposit required must be between zero and the quote total.");
         }
 
+        quote.DepositPercentage = depositPercentage ?? 0m;
         quote.DepositRequired = depositRequired;
 
         _context.Quotes.Add(quote);
@@ -338,6 +373,8 @@ public class QuoteService : IQuoteService
                 CustomerId = quote.CustomerId,
                 Customer = quote.Customer,
                 ReceiptNumber = receiptNumber,
+                SalespersonId = quote.SalespersonId,
+                SalespersonName = quote.SalespersonName,
                 Quantity = item.Quantity,
                 SaleDate = DateTime.UtcNow,
                 TotalPrice = lineTotalWithVat
@@ -432,6 +469,33 @@ public class QuoteService : IQuoteService
 
         var reservedByProduct = await GetReservedByProductAsync();
         return ToDto(quote, reservedByProduct);
+    }
+
+    private async Task<(StaffMember? Staff, string Name)> ResolveSalespersonAsync(
+        Guid? salespersonId,
+        string fallback)
+    {
+        if (salespersonId.HasValue)
+        {
+            var staff = await _context.StaffMembers
+                .FirstOrDefaultAsync(item =>
+                    item.Id == salespersonId.Value
+                    && item.IsActive);
+
+            if (staff == null)
+            {
+                throw new ArgumentException(
+                    "Selected salesperson is unavailable or inactive.");
+            }
+
+            return (staff, staff.FullName);
+        }
+
+        return (
+            null,
+            string.IsNullOrWhiteSpace(fallback)
+                ? "Unknown Salesperson"
+                : fallback.Trim());
     }
 
     private async Task<Customer> ResolveCustomerAsync(
@@ -539,6 +603,8 @@ public class QuoteService : IQuoteService
                 customer.HasWhatsApp,
                 customer.Address
             ),
+            quote.SalespersonId,
+            quote.SalespersonName,
             effectiveStatus.ToString(),
             quote.CreatedAt,
             quote.ValidUntil,
@@ -550,6 +616,7 @@ public class QuoteService : IQuoteService
             quote.VatRate,
             quote.VatAmount,
             quote.Total,
+            quote.DepositPercentage,
             quote.DepositRequired,
             quote.Payments.Sum(payment => payment.Amount),
             Math.Max(
