@@ -13,6 +13,7 @@ import {
   ReceiptText,
   Settings2,
   Truck,
+  Users,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -22,6 +23,7 @@ const menuItems = [
   { name: 'Stock Movements', href: '/stock-movements', icon: ListRestart },
   { name: 'Suppliers', href: '/suppliers', icon: Truck },
   { name: 'Quotes', href: '/quotes', icon: FileText },
+  { name: 'Customers', href: '/customers', icon: Users },
   { name: 'Sales', href: '/sales', icon: ReceiptText },
   { name: 'Reports', href: '/reports', icon: BarChart3 },
   { name: 'Business Settings', href: '/settings/business', icon: Settings2 },
