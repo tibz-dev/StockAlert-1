@@ -52,6 +52,7 @@ builder.Services
     });
 
 builder.Services.AddHostedService<StockSyncWorker>();
+builder.Services.AddHostedService<OwnerReportWorker>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
