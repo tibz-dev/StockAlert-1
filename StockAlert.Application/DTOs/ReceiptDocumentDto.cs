@@ -5,6 +5,8 @@ public record ReceiptDocumentDto(
     DateTime SaleDate,
     CustomerDto Customer,
     BusinessProfileDto Business,
+    Guid? SalespersonId,
+    string? SalespersonName,
     decimal Total,
     List<ReceiptLineDto> Lines
 );
