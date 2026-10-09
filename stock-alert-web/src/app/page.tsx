@@ -11,6 +11,7 @@ import {
   FileText,
   Loader2,
   Package,
+  Plus,
   ReceiptText,
   ShoppingCart,
   TrendingUp,
@@ -119,6 +120,13 @@ export default function DashboardPage() {
           <p className="mt-1 text-sm text-gray-500">
             Inventory, quotes, customers, sales and supplier signals in one place.
           </p>
+        </div>
+
+        <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <QuickAction href="/quotes" label="Create Quote" icon={<FileText size={18} />} />
+          <QuickAction href="/sales" label="Record Sale" icon={<ReceiptText size={18} />} />
+          <QuickAction href="/inventory" label="Add Product" icon={<Package size={18} />} />
+          <QuickAction href="/customers" label="View Customers" icon={<Users size={18} />} />
         </div>
 
         {error && (
@@ -444,6 +452,29 @@ export default function DashboardPage() {
         )}
       </div>
     </div>
+  );
+}
+
+function QuickAction({
+  href,
+  label,
+  icon,
+}: {
+  href: string;
+  label: string;
+  icon: ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 shadow-sm transition hover:border-blue-300 hover:text-blue-700"
+    >
+      <span className="flex items-center gap-2">
+        {icon}
+        {label}
+      </span>
+      <Plus size={15} />
+    </Link>
   );
 }
 
