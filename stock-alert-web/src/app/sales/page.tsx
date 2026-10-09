@@ -6,6 +6,7 @@ import {
   Mail,
   MessageCircle,
   PlusCircle,
+  Printer,
   ReceiptText,
   ShoppingCart,
   Smartphone,
@@ -394,6 +395,7 @@ export default function SalesPage() {
                       <th className="p-4 text-sm font-semibold text-gray-600">Product</th>
                       <th className="p-4 text-sm font-semibold text-gray-600">Qty</th>
                       <th className="p-4 text-sm font-semibold text-gray-600">Total</th>
+                      <th className="p-4 text-sm font-semibold text-gray-600">Receipt</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -412,12 +414,27 @@ export default function SalesPage() {
                         <td className="p-4 font-semibold text-gray-900">
                           {sale.totalPrice.toFixed(2)}
                         </td>
+                        <td className="p-4">
+                          <button
+                            onClick={() =>
+                              window.open(
+                                `/receipts/${sale.id}/print`,
+                                '_blank',
+                                'noopener,noreferrer',
+                              )
+                            }
+                            className="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                          >
+                            <Printer size={13} />
+                            Print
+                          </button>
+                        </td>
                       </tr>
                     ))}
 
                     {sales.length === 0 && (
                       <tr>
-                        <td colSpan={4} className="p-10 text-center text-sm text-gray-500">
+                        <td colSpan={5} className="p-10 text-center text-sm text-gray-500">
                           No sales have been recorded yet.
                         </td>
                       </tr>
@@ -548,12 +565,27 @@ function ReceiptDeliveryModal({
             </>
           )}
 
-          <button
-            onClick={onClose}
-            className="mt-5 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-          >
-            Done
-          </button>
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <button
+              onClick={() =>
+                window.open(
+                  `/receipts/${receipt.saleId}/print`,
+                  '_blank',
+                  'noopener,noreferrer',
+                )
+              }
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-100"
+            >
+              <Printer size={16} />
+              Print Receipt
+            </button>
+            <button
+              onClick={onClose}
+              className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+            >
+              Done
+            </button>
+          </div>
         </div>
       </div>
     </div>
