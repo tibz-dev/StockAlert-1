@@ -21,6 +21,66 @@ public class DocumentDeliveryService : IDocumentDeliveryService
         _businessProfileService = businessProfileService;
     }
 
+    public async Task<ReceiptDocumentDto?> GetReceiptAsync(Guid saleId)
+    {
+        var sale = await _context.Sales
+            .AsNoTracking()
+            .Include(item => item.Customer)
+            .FirstOrDefaultAsync(item => item.Id == saleId);
+
+        if (sale == null || sale.Customer == null)
+        {
+            return null;
+        }
+
+        var receiptNumber = sale.ReceiptNumber;
+
+        if (string.IsNullOrWhiteSpace(receiptNumber))
+        {
+            return null;
+        }
+
+        var receiptSales = await _context.Sales
+            .AsNoTracking()
+            .Include(item => item.Product)
+            .Where(item => item.ReceiptNumber == receiptNumber)
+            .OrderBy(item => item.SaleDate)
+            .ToListAsync();
+
+        if (receiptSales.Count == 0)
+        {
+            return null;
+        }
+
+        var business = await _businessProfileService.GetAsync();
+        var customer = sale.Customer;
+
+        return new ReceiptDocumentDto(
+            receiptNumber,
+            receiptSales[0].SaleDate,
+            new CustomerDto(
+                customer.Id,
+                customer.FullName,
+                customer.CompanyName,
+                customer.Email,
+                customer.PhoneNumber,
+                customer.WhatsAppNumber,
+                customer.HasWhatsApp,
+                customer.Address
+            ),
+            business,
+            receiptSales.Sum(item => item.TotalPrice),
+            receiptSales.Select(item => new ReceiptLineDto(
+                item.Product?.Name ?? "Unknown Product",
+                item.Quantity,
+                item.Quantity > 0
+                    ? item.TotalPrice / item.Quantity
+                    : 0m,
+                item.TotalPrice
+            )).ToList()
+        );
+    }
+
     public async Task<PreparedDeliveryDto> PrepareReceiptAsync(
         Guid saleId,
         PrepareDeliveryRequest request)
