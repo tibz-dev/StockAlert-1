@@ -49,7 +49,14 @@ public class QuotesController : ControllerBase
                 ?? User.FindFirstValue(ClaimTypes.NameIdentifier)
                 ?? "Unknown User";
 
-            var id = await _quoteService.CreateAsync(request, createdBy);
+            var effectiveRequest =
+                User.IsInRole("Owner") || User.IsInRole("Manager")
+                    ? request
+                    : request with { SalespersonId = null };
+
+            var id = await _quoteService.CreateAsync(
+                effectiveRequest,
+                createdBy);
 
             return CreatedAtAction(
                 nameof(GetById),
