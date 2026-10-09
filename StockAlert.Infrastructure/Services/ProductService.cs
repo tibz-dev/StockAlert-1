@@ -338,6 +338,13 @@ public class ProductService : IProductService
                     "Offline sale is missing its cached unit price.");
             }
 
+            if (!request.OfflineExpectedTotal.HasValue
+                || request.OfflineExpectedTotal.Value <= 0)
+            {
+                throw new InvalidOperationException(
+                    "Offline sale is missing its expected total.");
+            }
+
             saleDate = request.ClientCreatedAt.Value.Kind == DateTimeKind.Utc
                 ? request.ClientCreatedAt.Value
                 : request.ClientCreatedAt.Value.ToUniversalTime();
@@ -415,6 +422,27 @@ public class ProductService : IProductService
                 MidpointRounding.AwayFromZero)
             : 0m;
         var totalPrice = subtotal + vatAmount;
+
+        if (request.WasQueuedOffline)
+        {
+            var expectedTotal = decimal.Round(
+                request.OfflineExpectedTotal!.Value,
+                2,
+                MidpointRounding.AwayFromZero);
+
+            var currentTotal = decimal.Round(
+                totalPrice,
+                2,
+                MidpointRounding.AwayFromZero);
+
+            if (expectedTotal != currentTotal)
+            {
+                throw new InvalidOperationException(
+                    $"Offline total conflict for {product.Name}. " +
+                    $"Customer transaction total was {expectedTotal:0.00}; " +
+                    $"current server total is {currentTotal:0.00}.");
+            }
+        }
 
         var sale = new Sale
         {
