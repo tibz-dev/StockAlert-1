@@ -17,13 +17,17 @@ import api from '@/lib/api';
 import type { Product } from '@/types/inventory';
 import type { BusinessProfile } from '@/types/business';
 import type { Customer, PreparedDelivery } from '@/types/quote';
+import type { StaffMember } from '@/types/staff';
 
 interface Sale {
   id: string;
+  receiptNumber: string | null;
   productName: string;
   quantity: number;
   totalPrice: number;
   saleDate: string;
+  salespersonId: string | null;
+  salespersonName: string | null;
 }
 
 interface SaleReceipt {
@@ -34,6 +38,8 @@ interface SaleReceipt {
   unitPrice: number;
   totalPrice: number;
   saleDate: string;
+  salespersonId: string | null;
+  salespersonName: string | null;
   customer: Customer | null;
 }
 
@@ -41,12 +47,14 @@ export default function SalesPage() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [business, setBusiness] = useState<BusinessProfile | null>(null);
+  const [staff, setStaff] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [recording, setRecording] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [productId, setProductId] = useState('');
   const [quantity, setQuantity] = useState('1');
+  const [salespersonId, setSalespersonId] = useState('');
 
   const [customerName, setCustomerName] = useState('');
   const [customerCompanyName, setCustomerCompanyName] = useState('');
@@ -61,16 +69,22 @@ export default function SalesPage() {
     try {
       setError('');
 
-      const [salesResponse, productsResponse, businessResponse] =
-        await Promise.all([
-          api.get<Sale[]>('/sales'),
-          api.get<Product[]>('/products'),
-          api.get<BusinessProfile>('/business-profile'),
-        ]);
+      const [
+        salesResponse,
+        productsResponse,
+        businessResponse,
+        staffResponse,
+      ] = await Promise.all([
+        api.get<Sale[]>('/sales'),
+        api.get<Product[]>('/products'),
+        api.get<BusinessProfile>('/business-profile'),
+        api.get<StaffMember[]>('/staff', { params: { activeOnly: true } }),
+      ]);
 
       setSales(salesResponse.data);
       setProducts(productsResponse.data);
       setBusiness(businessResponse.data);
+      setStaff(staffResponse.data);
 
       setProductId((current) => {
         if (
@@ -153,6 +167,7 @@ export default function SalesPage() {
       const response = await api.post<SaleReceipt>('/sales', {
         productId: selectedProduct.id,
         quantity: parsedQuantity,
+        salespersonId: salespersonId || null,
         customerName: customerName.trim() || null,
         customerCompanyName: customerCompanyName.trim() || null,
         customerEmail: customerEmail.trim() || null,
@@ -252,6 +267,24 @@ export default function SalesPage() {
             </div>
 
             <div className="space-y-5">
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-gray-700">
+                  Salesperson
+                </span>
+                <select
+                  value={salespersonId}
+                  onChange={(event) => setSalespersonId(event.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                >
+                  <option value="">Current signed-in user</option>
+                  {staff.map((member) => (
+                    <option key={member.id} value={member.id}>
+                      {member.fullName} — {member.role}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
               <label className="block">
                 <span className="mb-2 block text-sm font-medium text-gray-700">
                   Product
@@ -419,6 +452,7 @@ export default function SalesPage() {
                     <tr>
                       <th className="p-4 text-sm font-semibold text-gray-600">Date</th>
                       <th className="p-4 text-sm font-semibold text-gray-600">Product</th>
+                      <th className="p-4 text-sm font-semibold text-gray-600">Salesperson</th>
                       <th className="p-4 text-sm font-semibold text-gray-600">Qty</th>
                       <th className="p-4 text-sm font-semibold text-gray-600">Total</th>
                       <th className="p-4 text-sm font-semibold text-gray-600">Receipt</th>
@@ -435,6 +469,9 @@ export default function SalesPage() {
                         </td>
                         <td className="p-4 font-medium text-gray-900">
                           {sale.productName}
+                        </td>
+                        <td className="p-4 text-sm text-gray-600">
+                          {sale.salespersonName ?? 'Not assigned'}
                         </td>
                         <td className="p-4 text-gray-700">{sale.quantity}</td>
                         <td className="p-4 font-semibold text-gray-900">
@@ -460,7 +497,7 @@ export default function SalesPage() {
 
                     {sales.length === 0 && (
                       <tr>
-                        <td colSpan={5} className="p-10 text-center text-sm text-gray-500">
+                        <td colSpan={6} className="p-10 text-center text-sm text-gray-500">
                           No sales have been recorded yet.
                         </td>
                       </tr>
@@ -503,8 +540,15 @@ function ReceiptDeliveryModal({
         { channel },
       );
 
-      if (response.data.actionUrl) {
+      if (response.data.status === 'Sent') {
+        setError('');
+      } else if (response.data.actionUrl) {
         window.location.href = response.data.actionUrl;
+      } else {
+        setError(
+          response.data.errorMessage ??
+            `${channel} delivery failed.`,
+        );
       }
     } catch {
       setError(
@@ -534,6 +578,7 @@ function ReceiptDeliveryModal({
             </h2>
             <p className="mt-1 text-sm text-gray-500">
               Receipt {receipt.receiptNumber} · {receipt.productName} x {receipt.quantity}
+              {receipt.salespersonName ? ` · Sold by ${receipt.salespersonName}` : ''}
             </p>
           </div>
           <button
