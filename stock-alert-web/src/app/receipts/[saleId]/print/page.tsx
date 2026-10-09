@@ -170,7 +170,7 @@ export default function ReceiptPrintPage() {
         </section>
 
         <div className="mt-6 ml-auto flex max-w-sm justify-between border-t border-gray-300 pt-4 text-xl font-bold text-gray-900">
-          <span>Total paid</span>
+          <span>Total</span>
           <span>{money(document.total, business.currencyCode)}</span>
         </div>
 
