@@ -460,8 +460,6 @@ namespace StockAlert.Infrastructure.Migrations
 
                     b.Navigation("Category");
 
-                    b.Navigation("StockAdjustments");
-
                     b.Navigation("Supplier");
                 });
 
