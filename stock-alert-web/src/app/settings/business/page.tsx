@@ -3,17 +3,30 @@
 import { useEffect, useState } from 'react';
 import {
   Building2,
+  CheckCircle2,
   CreditCard,
   Loader2,
+  Mail,
   MapPin,
+  MessageCircle,
   Save,
   Settings2,
+  Smartphone,
+  TriangleAlert,
 } from 'lucide-react';
 import api from '@/lib/api';
 import type { BusinessProfile } from '@/types/business';
 
+interface CommunicationStatus {
+  emailConfigured: boolean;
+  smsConfigured: boolean;
+  whatsAppConfigured: boolean;
+}
+
 export default function BusinessSettingsPage() {
   const [profile, setProfile] = useState<BusinessProfile | null>(null);
+  const [communicationStatus, setCommunicationStatus] =
+    useState<CommunicationStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -22,8 +35,13 @@ export default function BusinessSettingsPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const response = await api.get<BusinessProfile>('/business-profile');
-        setProfile(response.data);
+        const [profileResponse, communicationResponse] = await Promise.all([
+          api.get<BusinessProfile>('/business-profile'),
+          api.get<CommunicationStatus>('/communications/status'),
+        ]);
+
+        setProfile(profileResponse.data);
+        setCommunicationStatus(communicationResponse.data);
       } catch {
         setError('Unable to load business settings.');
       } finally {
@@ -284,6 +302,38 @@ export default function BusinessSettingsPage() {
           </Section>
 
           <Section
+            title="Automated communications"
+            description="Provider readiness for automatic customer delivery. Credentials stay on the server."
+            icon={<MessageCircle size={19} />}
+          >
+            <div className="grid gap-4 md:grid-cols-3">
+              <ProviderStatus
+                label="Email"
+                description="SMTP"
+                icon={<Mail size={18} />}
+                configured={communicationStatus?.emailConfigured ?? false}
+              />
+              <ProviderStatus
+                label="SMS"
+                description="Twilio Messaging"
+                icon={<Smartphone size={18} />}
+                configured={communicationStatus?.smsConfigured ?? false}
+              />
+              <ProviderStatus
+                label="WhatsApp"
+                description="Twilio WhatsApp"
+                icon={<MessageCircle size={18} />}
+                configured={communicationStatus?.whatsAppConfigured ?? false}
+              />
+            </div>
+
+            <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-800">
+              Provider credentials are configured through environment variables or server configuration,
+              not stored in Business Settings. This keeps SMTP and Twilio secrets out of the browser.
+            </div>
+          </Section>
+
+          <Section
             title="Document defaults"
             description="Defaults used when creating quotes and receipts."
             icon={<Settings2 size={19} />}
@@ -348,6 +398,38 @@ function Section({
       </div>
       {children}
     </section>
+  );
+}
+
+function ProviderStatus({
+  label,
+  description,
+  icon,
+  configured,
+}: {
+  label: string;
+  description: string;
+  icon: React.ReactNode;
+  configured: boolean;
+}) {
+  return (
+    <div className="rounded-xl border border-gray-200 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="rounded-lg bg-gray-50 p-2 text-gray-600">{icon}</div>
+        <span
+          className={
+            configured
+              ? 'inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-xs font-bold text-green-700'
+              : 'inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700'
+          }
+        >
+          {configured ? <CheckCircle2 size={12} /> : <TriangleAlert size={12} />}
+          {configured ? 'Configured' : 'Setup required'}
+        </span>
+      </div>
+      <p className="mt-3 font-semibold text-gray-900">{label}</p>
+      <p className="mt-1 text-xs text-gray-500">{description}</p>
+    </div>
   );
 }
 
