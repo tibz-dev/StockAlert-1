@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Barcode,
   Loader2,
   Mail,
   MessageCircle,
@@ -53,6 +54,8 @@ export default function SalesPage() {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [productId, setProductId] = useState('');
+  const [barcode, setBarcode] = useState('');
+  const [lookingUpBarcode, setLookingUpBarcode] = useState(false);
   const [quantity, setQuantity] = useState('1');
   const [salespersonId, setSalespersonId] = useState('');
 
@@ -117,6 +120,48 @@ export default function SalesPage() {
   const selectedProduct = products.find(
     (product) => product.id === productId,
   );
+
+  const lookupBarcode = async () => {
+    const value = barcode.trim();
+
+    if (!value) return;
+
+    try {
+      setLookingUpBarcode(true);
+      setError('');
+      setSuccessMessage('');
+
+      const response = await api.get<{
+        found: boolean;
+        isLocalProduct: boolean;
+        productId: string | null;
+        productName: string | null;
+      }>(`/barcodes/${value}`);
+
+      if (response.data.isLocalProduct && response.data.productId) {
+        setProductId(response.data.productId);
+        setSuccessMessage(
+          `Scanned ${response.data.productName ?? 'product'} successfully.`,
+        );
+        window.setTimeout(() => setSuccessMessage(''), 2200);
+        return;
+      }
+
+      if (response.data.found) {
+        setError(
+          `${response.data.productName ?? 'This barcode'} exists in the external catalogue but has not been added to your inventory yet.`,
+        );
+      } else {
+        setError(
+          'Barcode is not in StockAlert yet. Add the product to inventory first.',
+        );
+      }
+    } catch {
+      setError('Unable to look up this barcode.');
+    } finally {
+      setLookingUpBarcode(false);
+    }
+  };
 
   const parsedQuantity = Number(quantity);
   const estimatedSubtotal =
@@ -267,6 +312,41 @@ export default function SalesPage() {
             </div>
 
             <div className="space-y-5">
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-gray-700">
+                  Scan barcode
+                </span>
+                <div className="relative">
+                  <Barcode
+                    size={18}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                  />
+                  <input
+                    value={barcode}
+                    onChange={(event) => setBarcode(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        void lookupBarcode();
+                      }
+                    }}
+                    inputMode="numeric"
+                    autoComplete="off"
+                    placeholder="Focus here and scan, or type the barcode"
+                    className="w-full rounded-lg border border-gray-300 py-2.5 pl-10 pr-12 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  />
+                  {lookingUpBarcode && (
+                    <Loader2
+                      size={17}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-blue-600"
+                    />
+                  )}
+                </div>
+                <p className="mt-1 text-xs text-gray-400">
+                  USB scanners and phone scanners using keyboard emulation work here.
+                </p>
+              </label>
+
               <label className="block">
                 <span className="mb-2 block text-sm font-medium text-gray-700">
                   Salesperson
