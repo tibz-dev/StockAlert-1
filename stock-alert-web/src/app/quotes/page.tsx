@@ -225,7 +225,7 @@ export default function QuotesPage() {
 
         <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1100px] text-left">
+            <table className="w-full min-w-[1280px] text-left">
               <thead className="border-b border-gray-200 bg-gray-50">
                 <tr>
                   <th className="p-4 text-sm font-semibold text-gray-600">Quote</th>
@@ -815,9 +815,12 @@ function CreateQuoteModal({
       return;
     }
 
+    const rawDepositPercentage = Number(depositPercentage);
+
     if (
-      pricing.depositPercentage < 0 ||
-      pricing.depositPercentage > 100
+      !Number.isFinite(rawDepositPercentage) ||
+      rawDepositPercentage < 0 ||
+      rawDepositPercentage > 100
     ) {
       setError('Deposit percentage must be between 0% and 100%.');
       return;
@@ -1390,7 +1393,10 @@ function QuoteDetails({ quote }: { quote: Quote }) {
             <span>{formatAmount(quote.total)}</span>
           </div>
           {quote.depositRequired > 0 && (
-            <MoneyRow label="Deposit required" value={quote.depositRequired} />
+            <MoneyRow
+              label={`Deposit required (${quote.depositPercentage}%)`}
+              value={quote.depositRequired}
+            />
           )}
           <MoneyRow label="Amount paid" value={quote.amountPaid} />
           <MoneyRow label="Balance due" value={quote.balanceDue} />
@@ -1398,6 +1404,12 @@ function QuoteDetails({ quote }: { quote: Quote }) {
             <PaymentBadge status={quote.paymentStatus} />
           </div>
         </div>
+
+        {quote.salespersonName && (
+          <div className="mt-4 rounded-lg bg-blue-50 p-3 text-sm text-blue-800">
+            Salesperson: <strong>{quote.salespersonName}</strong>
+          </div>
+        )}
 
         {quote.payments.length > 0 && (
           <div className="mt-4 border-t border-gray-100 pt-4">
