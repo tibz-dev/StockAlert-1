@@ -229,16 +229,20 @@ public class ProductService : IProductService
             .OrderByDescending(s => s.SaleDate)
             .Select(s => new SaleDto(
                 s.Id,
+                s.ReceiptNumber,
                 s.Product != null ? s.Product.Name : "Unknown Product",
                 s.Quantity,
                 s.TotalPrice,
-                s.SaleDate
+                s.SaleDate,
+                s.SalespersonId,
+                s.SalespersonName
             ))
             .ToListAsync();
     }
 
     public async Task<SaleReceiptDto?> RecordSaleAsync(
-        CreateSaleRequest request)
+        CreateSaleRequest request,
+        string salespersonFallback)
     {
         if (request.Quantity <= 0)
         {
@@ -266,6 +270,9 @@ public class ProductService : IProductService
 
         var customer = await ResolveSaleCustomerAsync(request);
         var business = await _businessProfileService.GetAsync();
+        var salesperson = await ResolveSalespersonAsync(
+            request.SalespersonId,
+            salespersonFallback);
 
         product.StockQuantity -= request.Quantity;
 
@@ -285,6 +292,9 @@ public class ProductService : IProductService
             Product = product,
             Customer = customer,
             ReceiptNumber = GenerateReceiptNumber(),
+            SalespersonId = salesperson.Staff?.Id,
+            Salesperson = salesperson.Staff,
+            SalespersonName = salesperson.Name,
             Quantity = request.Quantity,
             SaleDate = DateTime.UtcNow,
             TotalPrice = totalPrice
@@ -301,6 +311,8 @@ public class ProductService : IProductService
             product.Price,
             sale.TotalPrice,
             sale.SaleDate,
+            sale.SalespersonId,
+            sale.SalespersonName,
             customer == null
                 ? null
                 : ToCustomerDto(customer)
@@ -435,12 +447,15 @@ public class ProductService : IProductService
             .Take(5)
             .Select(sale => new SaleDto(
                 sale.Id,
+                sale.ReceiptNumber,
                 sale.Product != null
                     ? sale.Product.Name
                     : "Unknown Product",
                 sale.Quantity,
                 sale.TotalPrice,
-                sale.SaleDate
+                sale.SaleDate,
+                sale.SalespersonId,
+                sale.SalespersonName
             ))
             .ToListAsync();
 
@@ -723,6 +738,33 @@ public class ProductService : IProductService
                 && item.Quote.Status == QuoteStatus.Accepted)
             .Select(item => (int?)item.Quantity)
             .SumAsync() ?? 0;
+    }
+
+    private async Task<(StaffMember? Staff, string Name)> ResolveSalespersonAsync(
+        Guid? salespersonId,
+        string fallback)
+    {
+        if (salespersonId.HasValue)
+        {
+            var staff = await _context.StaffMembers
+                .FirstOrDefaultAsync(item =>
+                    item.Id == salespersonId.Value
+                    && item.IsActive);
+
+            if (staff == null)
+            {
+                throw new InvalidOperationException(
+                    "Selected salesperson is unavailable or inactive.");
+            }
+
+            return (staff, staff.FullName);
+        }
+
+        return (
+            null,
+            string.IsNullOrWhiteSpace(fallback)
+                ? "Unknown Salesperson"
+                : fallback.Trim());
     }
 
     private async Task<Customer?> ResolveSaleCustomerAsync(
