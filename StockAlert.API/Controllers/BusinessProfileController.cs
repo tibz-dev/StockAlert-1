@@ -24,6 +24,7 @@ public class BusinessProfileController : ControllerBase
         return Ok(await _businessProfileService.GetAsync());
     }
 
+    [Authorize(Roles = "Owner")]
     [HttpPut]
     public async Task<IActionResult> Update(
         UpdateBusinessProfileRequest request)
