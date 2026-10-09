@@ -394,3 +394,70 @@ Quotes support negotiated deposits as a percentage of the final quote total. The
 - balance remaining after the deposit.
 
 The backend recalculates and validates the deposit amount when the quote is saved, so the browser preview is not treated as the source of truth.
+
+
+## Barcode scanning and product identification
+
+StockAlert treats the barcode as a product identifier, not as the product name itself.
+
+The MVP barcode workflow is:
+
+1. A USB scanner, phone scanner, or keyboard-emulation scanner enters the barcode into StockAlert.
+2. StockAlert checks its own product catalogue first.
+3. If the barcode is unknown locally, the API performs a best-effort UPCitemdb lookup.
+4. If a product name is found, the Add Product screen prefills it for staff to verify.
+5. If no external match exists, staff captures the product details manually once and StockAlert permanently stores the barcode locally.
+
+This local-first design means ordinary scanning is not dependent on an external catalogue after the product has been created.
+
+### MVP scanner options
+
+Any scanner that behaves like a keyboard works with the barcode input. This includes ordinary USB HID scanners and smartphone scanner apps that send the scan as keyboard input.
+
+For resilience during internet outages, prefer a direct USB/Bluetooth HID scanner where possible. Wi-Fi phone scanner apps remain useful for demos and low-cost deployments.
+
+## Audit trail and soft delete
+
+Products use soft delete/archive semantics. Archived products disappear from normal inventory and sales selection, while historical sales, quotes and audit records remain intact.
+
+The Audit Trail now supports:
+
+- readable events such as Sold, StockAdjusted, Archived, QuoteCreated and PaymentRecorded;
+- user attribution and request IP address where available;
+- date-range and text/action filtering;
+- server-side pagination;
+- CSV export;
+- browser Print / Save as PDF.
+
+Audit logs are not deleted as part of normal UI workflows.
+
+## Owner-protected scheduled reporting
+
+StockAlert uses ASP.NET Identity roles. The protected reporting configuration is restricted server-side to the `Owner` role.
+
+For a legacy database with multiple existing users and no Owner role yet, configure the authorised owner explicitly:
+
+```text
+Security__BootstrapOwnerEmail=owner@example.com
+```
+
+The API will not automatically promote an arbitrary user when multiple legacy accounts exist.
+
+Owner reports can be scheduled Daily, Weekly, Monthly and Yearly. They contain operational metrics and an audit-trail digest. The worker runs inside the API process, so when the API is cloud hosted it continues even when a shop PC or browser is offline.
+
+Public registration is only available for initial owner bootstrap. After an account exists, staff access must be provisioned by the owner/admin workflow rather than by open public registration.
+
+## Loadshedding / offline roadmap
+
+The next resilience layer is an offline-capable web client:
+
+- cache the application shell and product/barcode catalogue as a PWA;
+- store offline work in IndexedDB;
+- assign each device a stable device ID and each offline transaction a client-generated operation ID;
+- queue sales and stock operations as **Pending Sync** rather than pretending they are already globally committed;
+- sync automatically when connectivity returns;
+- make the API idempotent so retrying an operation cannot double-sell or double-adjust stock;
+- show conflict/reconciliation states when another device changed stock while this device was offline;
+- keep cloud-hosted scheduled owner reports independent of the local browser.
+
+For an MVP with one checkout device, offline sales can use the last cached available stock. Multi-device offline selling needs conflict detection because two disconnected devices cannot know what the other has sold.
