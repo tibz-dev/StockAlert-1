@@ -381,7 +381,16 @@ public class ProductService : IProductService
 
         var activeQuoteCount = activeQuotes.Count;
         var quotePipelineValue = activeQuotes.Sum(quote => quote.Total);
-        var outstandingQuoteBalance = activeQuotes.Sum(quote =>
+
+        var receivableQuotes = await _context.Quotes
+            .AsNoTracking()
+            .Where(quote =>
+                quote.Status == QuoteStatus.Accepted
+                || quote.Status == QuoteStatus.Converted)
+            .Include(quote => quote.Payments)
+            .ToListAsync();
+
+        var outstandingQuoteBalance = receivableQuotes.Sum(quote =>
             Math.Max(
                 0m,
                 quote.Total - quote.Payments.Sum(payment => payment.Amount)));
