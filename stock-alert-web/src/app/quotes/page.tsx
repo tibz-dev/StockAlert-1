@@ -18,8 +18,10 @@ import {
   XCircle,
 } from 'lucide-react';
 import api from '@/lib/api';
+import type { BusinessProfile } from '@/types/business';
 import type { Product } from '@/types/inventory';
 import type { PreparedDelivery, Quote, QuoteConversion } from '@/types/quote';
+import type { StaffMember } from '@/types/staff';
 
 interface QuoteFormItem {
   productId: string;
@@ -30,6 +32,8 @@ interface QuoteFormItem {
 export default function QuotesPage() {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [business, setBusiness] = useState<BusinessProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -43,13 +47,22 @@ export default function QuotesPage() {
   const load = useCallback(async () => {
     try {
       setError('');
-      const [quotesResponse, productsResponse] = await Promise.all([
+      const [
+        quotesResponse,
+        productsResponse,
+        staffResponse,
+        businessResponse,
+      ] = await Promise.all([
         api.get<Quote[]>('/quotes'),
         api.get<Product[]>('/products'),
+        api.get<StaffMember[]>('/staff', { params: { activeOnly: true } }),
+        api.get<BusinessProfile>('/business-profile'),
       ]);
 
       setQuotes(quotesResponse.data);
       setProducts(productsResponse.data);
+      setStaff(staffResponse.data);
+      setBusiness(businessResponse.data);
     } catch {
       setError('Unable to load quotes.');
     } finally {
@@ -106,13 +119,20 @@ export default function QuotesPage() {
 
       await load();
 
-      if (response.data.actionUrl) {
+      if (response.data.status === 'Sent') {
+        setSuccess(
+          `${channel} sent automatically to ${quote.customer.fullName}.`,
+        );
+      } else if (response.data.actionUrl) {
         window.location.href = response.data.actionUrl;
+        setSuccess(
+          `${channel} provider is not configured, so the manual fallback was opened.`,
+        );
+      } else {
+        throw new Error(
+          response.data.errorMessage ?? `${channel} delivery failed.`,
+        );
       }
-
-      setSuccess(
-        `${channel} message prepared for ${quote.customer.fullName}.`,
-      );
       window.setTimeout(() => setSuccess(''), 3000);
     } catch {
       setError(
@@ -208,6 +228,7 @@ export default function QuotesPage() {
                 <tr>
                   <th className="p-4 text-sm font-semibold text-gray-600">Quote</th>
                   <th className="p-4 text-sm font-semibold text-gray-600">Customer</th>
+                  <th className="p-4 text-sm font-semibold text-gray-600">Salesperson</th>
                   <th className="p-4 text-sm font-semibold text-gray-600">Valid until</th>
                   <th className="p-4 text-sm font-semibold text-gray-600">Items</th>
                   <th className="p-4 text-sm font-semibold text-gray-600">Total</th>
@@ -249,6 +270,11 @@ export default function QuotesPage() {
                               quote.customer.email ??
                               quote.customer.phoneNumber ??
                               'No contact'}
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <div className="text-sm font-medium text-gray-800">
+                            {quote.salespersonName ?? 'Not assigned'}
                           </div>
                         </td>
                         <td className="p-4 text-sm text-gray-600">
@@ -365,7 +391,7 @@ export default function QuotesPage() {
 
                       {expanded && (
                         <tr key={`${quote.id}-details`}>
-                          <td colSpan={8} className="bg-slate-50 p-5">
+                          <td colSpan={9} className="bg-slate-50 p-5">
                             <QuoteDetails quote={quote} />
                           </td>
                         </tr>
@@ -376,7 +402,7 @@ export default function QuotesPage() {
 
                 {quotes.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="p-12 text-center text-sm text-gray-500">
+                    <td colSpan={9} className="p-12 text-center text-sm text-gray-500">
                       No quotes yet. Create the first quote to start tracking pipeline demand.
                     </td>
                   </tr>
@@ -410,12 +436,14 @@ export default function QuotesPage() {
       {creating && (
         <CreateQuoteModal
           products={products}
+          staff={staff}
+          business={business}
           onClose={() => setCreating(false)}
-          onCreated={async () => {
+          onCreated={async (message) => {
             setCreating(false);
             await load();
-            setSuccess('Quote created successfully.');
-            window.setTimeout(() => setSuccess(''), 3000);
+            setSuccess(message);
+            window.setTimeout(() => setSuccess(''), 4500);
           }}
         />
       )}
