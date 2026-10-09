@@ -13,6 +13,8 @@ export interface ReceiptDocument {
   saleDate: string;
   customer: Customer;
   business: BusinessProfile;
+  salespersonId: string | null;
+  salespersonName: string | null;
   total: number;
   lines: ReceiptLine[];
 }
