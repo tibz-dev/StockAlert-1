@@ -22,7 +22,9 @@ public class Quote
     public decimal VatRate { get; set; }
     public decimal VatAmount { get; set; }
     public decimal Total { get; set; }
+    public decimal DepositRequired { get; set; }
     public string? CreatedBy { get; set; }
 
     public ICollection<QuoteItem> Items { get; set; } = new List<QuoteItem>();
+    public ICollection<QuotePayment> Payments { get; set; } = new List<QuotePayment>();
 }
