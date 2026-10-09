@@ -9,8 +9,10 @@ public record CreateQuoteRequest(
     string? CustomerWhatsAppNumber,
     bool CustomerHasWhatsApp,
     string? CustomerAddress,
+    Guid? SalespersonId,
     DateTime? ValidUntil,
     string? Notes,
+    decimal? DepositPercentage,
     decimal? DepositRequired,
     List<CreateQuoteItemRequest> Items
 );
