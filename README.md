@@ -290,3 +290,49 @@ No license has been added yet.
 ---
 
 Built as an inventory visibility, sales monitoring and reconciliation platform with ASP.NET Core, SQL Server and Next.js.
+
+
+## Pitch-ready MVP flow
+
+The current MVP is designed to demonstrate one complete small-business workflow:
+
+1. Configure the business profile, branch details, VAT, banking details, currency, quote validity, logo, and receipt footer.
+2. Add suppliers and products with physical stock.
+3. Create a customer quote with multiple products and an optional required deposit.
+4. Share the quote through prepared Email, SMS, or WhatsApp actions.
+5. Accept the quote to reserve inventory so ordinary sales cannot consume promised stock.
+6. Record deposits and other payments against the quote.
+7. Convert an accepted quote to a sale once the required deposit is satisfied.
+8. Generate a grouped receipt, share it with the customer, or print/save it as PDF.
+9. Track customers, sales, quote pipeline value, outstanding quote balances, reserved stock, low stock, suppliers, and reports from the dashboard.
+
+### MVP document handling
+
+Quotes and receipts have clean print views that use the configured business identity, branch information, address, VAT details, banking details, customer information, and document totals. Browser Print can be used to save these as PDF immediately.
+
+### Communication channels
+
+The MVP prepares and logs customer communication, then opens the appropriate Email, SMS, or WhatsApp action with the message pre-filled. Direct server-side delivery through SMTP, Twilio, or the WhatsApp Business API is intentionally left as the production integration layer so provider credentials are not hard-coded into the application.
+
+### Inventory terminology
+
+- **On Hand**: physical stock currently held by the business.
+- **Under Quote**: stock included on active sent or accepted quotes.
+- **Reserved**: quantities protected by accepted quotes.
+- **Available**: on-hand stock minus accepted-quote reservations.
+- **Sold**: cumulative units already recorded as sales.
+
+This distinction prevents accepted quotes from silently competing with ordinary sales for the same units.
+
+## Production next
+
+The MVP intentionally leaves these for the production hardening phase:
+
+- role-based permissions for Admin, Manager, Sales, and Stock users;
+- real Email/SMS/WhatsApp Business providers;
+- password reset and account administration;
+- hosted file/logo storage rather than URL-only branding;
+- payment gateway integration and automated reconciliation;
+- automated quote expiry reminders and follow-ups;
+- deployment secrets, production CORS, structured logging, monitoring, tests, and CI/CD;
+- optional SmartTrade/POS integration after confirmed API documentation and credentials.
