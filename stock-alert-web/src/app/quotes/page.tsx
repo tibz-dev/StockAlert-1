@@ -18,6 +18,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import api from '@/lib/api';
+import { getSessionInfo } from '@/lib/auth';
 import type { BusinessProfile } from '@/types/business';
 import type { Product } from '@/types/inventory';
 import type { PreparedDelivery, Quote, QuoteConversion } from '@/types/quote';
@@ -30,6 +31,11 @@ interface QuoteFormItem {
 }
 
 export default function QuotesPage() {
+  const session = getSessionInfo();
+  const canAssignSalesperson =
+    session.roles.includes('Owner') ||
+    session.roles.includes('Manager');
+
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [staff, setStaff] = useState<StaffMember[]>([]);
@@ -440,6 +446,10 @@ export default function QuotesPage() {
           products={products}
           staff={staff}
           business={business}
+          canAssignSalesperson={canAssignSalesperson}
+          currentSalespersonName={
+            session.name ?? session.email ?? 'Signed-in staff member'
+          }
           onClose={() => setCreating(false)}
           onCreated={async (message) => {
             setCreating(false);
@@ -685,12 +695,16 @@ function CreateQuoteModal({
   products,
   staff,
   business,
+  canAssignSalesperson,
+  currentSalespersonName,
   onClose,
   onCreated,
 }: {
   products: Product[];
   staff: StaffMember[];
   business: BusinessProfile | null;
+  canAssignSalesperson: boolean;
+  currentSalespersonName: string;
   onClose: () => void;
   onCreated: (message: string) => Promise<void>;
 }) {
@@ -966,27 +980,36 @@ function CreateQuoteModal({
                 onChange={setCustomerCompanyName}
               />
 
-              <label className="block">
-                <span className="mb-2 block text-sm font-medium text-gray-700">
-                  Salesperson
-                </span>
-                <select
-                  value={salespersonId}
-                  onChange={(event) =>
-                    setSalespersonId(event.target.value)
-                  }
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                >
-                  <option value="">
-                    Current signed-in user
-                  </option>
-                  {staff.map((member) => (
-                    <option key={member.id} value={member.id}>
-                      {member.fullName} — {member.role}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              {canAssignSalesperson ? (
+                <label className="block">
+                  <span className="mb-2 block text-sm font-medium text-gray-700">
+                    Salesperson
+                  </span>
+                  <select
+                    value={salespersonId}
+                    onChange={(event) =>
+                      setSalespersonId(event.target.value)
+                    }
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  >
+                    <option value="">Current signed-in user</option>
+                    {staff.map((member) => (
+                      <option key={member.id} value={member.id}>
+                        {member.fullName} — {member.role}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : (
+                <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                    Salesperson
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-gray-900">
+                    {currentSalespersonName}
+                  </p>
+                </div>
+              )}
 
               <Input
                 label="Email"
