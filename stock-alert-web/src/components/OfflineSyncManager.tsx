@@ -123,11 +123,16 @@ export default function OfflineSyncManager() {
       syncingRef.current = false;
       setSyncing(false);
       await refresh();
+
+      if (navigator.onLine) {
+        await primeOfflineCache();
+      }
+
       window.dispatchEvent(
         new CustomEvent('stockalert:sync-complete'),
       );
     }
-  }, [refresh]);
+  }, [primeOfflineCache, refresh]);
 
   useEffect(() => {
     setOnline(navigator.onLine);
