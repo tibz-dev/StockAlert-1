@@ -16,6 +16,11 @@ public class Sale
     public StaffMember? Salesperson { get; set; }
     public string? SalespersonName { get; set; }
 
+    public Guid? ClientOperationId { get; set; }
+    public string? DeviceId { get; set; }
+    public DateTime? ClientCreatedAt { get; set; }
+    public bool WasQueuedOffline { get; set; }
+
     public int Quantity { get; set; }
     public DateTime SaleDate { get; set; } = DateTime.UtcNow;
     public decimal TotalPrice { get; set; }
