@@ -28,6 +28,7 @@ public class ProductService : IProductService
     {
         var products = await _context.Products
             .AsNoTracking()
+            .Where(product => !product.IsDeleted)
             .Include(product => product.Category)
             .Include(product => product.Supplier)
             .OrderBy(product => product.Name)
@@ -50,7 +51,8 @@ public class ProductService : IProductService
             .AsNoTracking()
             .Include(item => item.Category)
             .Include(item => item.Supplier)
-            .FirstOrDefaultAsync(item => item.Id == id);
+            .FirstOrDefaultAsync(item =>
+                item.Id == id && !item.IsDeleted);
 
         if (product == null)
         {
@@ -73,6 +75,28 @@ public class ProductService : IProductService
             request.CategoryName,
             request.SupplierName);
 
+        var barcode = NormalizeBarcode(request.Barcode);
+
+        if (barcode != null &&
+            await _context.Products.AnyAsync(product =>
+                product.Barcode == barcode && !product.IsDeleted))
+        {
+            throw new InvalidOperationException(
+                "Another active product already uses this barcode.");
+        }
+
+        var barcode = NormalizeBarcode(request.Barcode);
+
+        if (barcode != null &&
+            await _context.Products.AnyAsync(item =>
+                item.Id != id
+                && item.Barcode == barcode
+                && !item.IsDeleted))
+        {
+            throw new InvalidOperationException(
+                "Another active product already uses this barcode.");
+        }
+
         var category = await GetOrCreateCategoryAsync(request.CategoryName);
         var supplier = await GetOrCreateSupplierAsync(
             request.SupplierName,
@@ -83,6 +107,7 @@ public class ProductService : IProductService
             Id = Guid.NewGuid(),
             Name = request.Name.Trim(),
             Description = NormalizeOptional(request.Description),
+            Barcode = barcode,
             Price = request.Price,
             StockQuantity = request.StockQuantity,
             Category = category,
@@ -119,6 +144,7 @@ public class ProductService : IProductService
 
         product.Name = request.Name.Trim();
         product.Description = NormalizeOptional(request.Description);
+        product.Barcode = barcode;
         product.Price = request.Price;
         product.Category = category;
         product.Supplier = supplier;
@@ -127,37 +153,26 @@ public class ProductService : IProductService
         return true;
     }
 
-    public async Task<bool> DeleteProductAsync(Guid id)
+    public async Task<bool> DeleteProductAsync(
+        Guid id,
+        string performedBy)
     {
         var product = await _context.Products
-            .FirstOrDefaultAsync(p => p.Id == id);
+            .FirstOrDefaultAsync(item =>
+                item.Id == id && !item.IsDeleted);
 
         if (product == null)
         {
             return false;
         }
 
-        var hasSalesHistory = await _context.Sales
-            .AsNoTracking()
-            .AnyAsync(s => s.ProductId == id);
+        product.IsDeleted = true;
+        product.DeletedAt = DateTime.UtcNow;
+        product.DeletedBy = string.IsNullOrWhiteSpace(performedBy)
+            ? "Unknown User"
+            : performedBy.Trim();
 
-        var hasStockHistory = await _context.StockAdjustments
-            .AsNoTracking()
-            .AnyAsync(adjustment => adjustment.ProductId == id);
-
-        var hasQuoteHistory = await _context.QuoteItems
-            .AsNoTracking()
-            .AnyAsync(item => item.ProductId == id);
-
-        if (hasSalesHistory || hasStockHistory || hasQuoteHistory)
-        {
-            throw new InvalidOperationException(
-                "Products with sales, stock movement, or quote history cannot be deleted.");
-        }
-
-        _context.Products.Remove(product);
         await _context.SaveChangesAsync(default);
-
         return true;
     }
 
@@ -250,7 +265,8 @@ public class ProductService : IProductService
         }
 
         var product = await _context.Products
-            .FirstOrDefaultAsync(item => item.Id == request.ProductId);
+            .FirstOrDefaultAsync(item =>
+                item.Id == request.ProductId && !item.IsDeleted);
 
         if (product == null)
         {
@@ -323,15 +339,18 @@ public class ProductService : IProductService
     {
         var totalProducts = await _context.Products
             .AsNoTracking()
+            .Where(product => !product.IsDeleted)
             .CountAsync();
 
         var totalInventoryValue = await _context.Products
             .AsNoTracking()
+            .Where(product => !product.IsDeleted)
             .Select(product => (decimal?)(product.Price * product.StockQuantity))
             .SumAsync() ?? 0m;
 
         var dashboardProducts = await _context.Products
             .AsNoTracking()
+            .Where(product => !product.IsDeleted)
             .Select(product => new
             {
                 product.Id,
@@ -560,12 +579,13 @@ public class ProductService : IProductService
         var builder = new System.Text.StringBuilder();
 
         builder.AppendLine(
-            "Product Name,Description,Category,Supplier,Price,On Hand,Under Quote,Reserved,Available,Sold,Low Stock Alert");
+            "Product Name,Barcode,Description,Category,Supplier,Price,On Hand,Under Quote,Reserved,Available,Sold,Low Stock Alert");
 
         foreach (var product in products)
         {
             builder.AppendLine(
                 $"{EscapeCsv(product.Name)}," +
+                $"{EscapeCsv(product.Barcode ?? string.Empty)}," +
                 $"{EscapeCsv(product.Description ?? string.Empty)}," +
                 $"{EscapeCsv(product.CategoryName)}," +
                 $"{EscapeCsv(product.SupplierName)}," +
@@ -646,6 +666,7 @@ public class ProductService : IProductService
             product.Id,
             product.Name,
             product.Description,
+            product.Barcode,
             product.Price,
             product.StockQuantity,
             product.Category?.Name ?? "N/A",
@@ -887,6 +908,24 @@ public class ProductService : IProductService
         {
             throw new ArgumentException("Supplier is required.");
         }
+    }
+
+    private static string? NormalizeBarcode(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var barcode = new string(value.Where(char.IsDigit).ToArray());
+
+        if (barcode.Length < 8 || barcode.Length > 14)
+        {
+            throw new ArgumentException(
+                "Barcode must contain between 8 and 14 digits.");
+        }
+
+        return barcode;
     }
 
     private static string? NormalizeOptional(string? value)
