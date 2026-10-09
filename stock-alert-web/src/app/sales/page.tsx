@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import api from '@/lib/api';
 import type { Product } from '@/types/inventory';
+import type { BusinessProfile } from '@/types/business';
 import type { Customer, PreparedDelivery } from '@/types/quote';
 
 interface Sale {
@@ -39,6 +40,7 @@ interface SaleReceipt {
 export default function SalesPage() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [business, setBusiness] = useState<BusinessProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [recording, setRecording] = useState(false);
   const [error, setError] = useState('');
@@ -59,13 +61,16 @@ export default function SalesPage() {
     try {
       setError('');
 
-      const [salesResponse, productsResponse] = await Promise.all([
-        api.get<Sale[]>('/sales'),
-        api.get<Product[]>('/products'),
-      ]);
+      const [salesResponse, productsResponse, businessResponse] =
+        await Promise.all([
+          api.get<Sale[]>('/sales'),
+          api.get<Product[]>('/products'),
+          api.get<BusinessProfile>('/business-profile'),
+        ]);
 
       setSales(salesResponse.data);
       setProducts(productsResponse.data);
+      setBusiness(businessResponse.data);
 
       setProductId((current) => {
         if (
@@ -100,10 +105,15 @@ export default function SalesPage() {
   );
 
   const parsedQuantity = Number(quantity);
-  const estimatedTotal =
+  const estimatedSubtotal =
     selectedProduct && Number.isInteger(parsedQuantity) && parsedQuantity > 0
       ? selectedProduct.price * parsedQuantity
       : 0;
+  const estimatedVat =
+    business?.isVatRegistered
+      ? estimatedSubtotal * (business.defaultVatRate / 100)
+      : 0;
+  const estimatedTotal = estimatedSubtotal + estimatedVat;
 
   const totalRevenue = useMemo(
     () => sales.reduce((sum, sale) => sum + sale.totalPrice, 0),
@@ -291,11 +301,27 @@ export default function SalesPage() {
                     value={selectedProduct.availableQuantity}
                     strong
                   />
-                  <div className="mt-3 flex justify-between border-t border-gray-200 pt-3 text-gray-700">
-                    <span>Sale total</span>
-                    <strong className="text-lg text-gray-900">
-                      {estimatedTotal.toFixed(2)}
-                    </strong>
+                  <div className="mt-3 border-t border-gray-200 pt-3">
+                    <div className="flex justify-between text-gray-600">
+                      <span>Subtotal</span>
+                      <strong className="text-gray-900">
+                        {estimatedSubtotal.toFixed(2)}
+                      </strong>
+                    </div>
+                    {business?.isVatRegistered && (
+                      <div className="mt-2 flex justify-between text-gray-600">
+                        <span>VAT ({business.defaultVatRate}%)</span>
+                        <strong className="text-gray-900">
+                          {estimatedVat.toFixed(2)}
+                        </strong>
+                      </div>
+                    )}
+                    <div className="mt-3 flex justify-between border-t border-gray-200 pt-3 text-gray-700">
+                      <span>Sale total</span>
+                      <strong className="text-lg text-gray-900">
+                        {business?.currencyCode ?? ''} {estimatedTotal.toFixed(2)}
+                      </strong>
+                    </div>
                   </div>
                 </div>
               )}
