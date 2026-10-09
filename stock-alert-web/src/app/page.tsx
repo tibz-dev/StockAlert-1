@@ -31,10 +31,13 @@ interface TopSellingProduct {
 
 interface RecentSale {
   id: string;
+  receiptNumber: string | null;
   productName: string;
   quantity: number;
   totalPrice: number;
   saleDate: string;
+  salespersonId: string | null;
+  salespersonName: string | null;
 }
 
 interface RecentStockMovement {
@@ -385,6 +388,9 @@ export default function DashboardPage() {
                           <p className="mt-1 text-xs text-gray-500">
                             {formatDate(sale.saleDate)} · {sale.quantity} unit
                             {sale.quantity === 1 ? '' : 's'}
+                            {sale.salespersonName
+                              ? ` · ${sale.salespersonName}`
+                              : ''}
                           </p>
                         </div>
                         <span className="shrink-0 text-sm font-semibold text-gray-900">
