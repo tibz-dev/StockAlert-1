@@ -184,7 +184,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
             StaffMember staff =>
                 $"Staff member '{staff.FullName}' {action.ToLowerInvariant()}.",
 
-            OwnerReportSettings =>
+            StockAlert.Domain.Entities.OwnerReportSettings =>
                 $"Owner report configuration {action.ToLowerInvariant()}.",
 
             _ =>
