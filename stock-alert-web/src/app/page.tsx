@@ -8,14 +8,15 @@ import {
   ArrowRight,
   ArrowUp,
   Boxes,
-  CircleOff,
+  FileText,
   Loader2,
   Package,
   ReceiptText,
-  RefreshCw,
   ShoppingCart,
   TrendingUp,
   Truck,
+  Users,
+  WalletCards,
 } from 'lucide-react';
 import api from '@/lib/api';
 
@@ -61,6 +62,11 @@ interface DashboardStats {
   totalSalesRevenue: number;
   totalUnitsSold: number;
   totalSuppliers: number;
+  totalCustomers: number;
+  activeQuotes: number;
+  quotePipelineValue: number;
+  outstandingQuoteBalance: number;
+  reservedUnits: number;
   topSellingProducts: TopSellingProduct[];
   recentSales: RecentSale[];
   recentStockMovements: RecentStockMovement[];
@@ -79,9 +85,7 @@ interface StatCardProps {
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [isSyncing, setIsSyncing] = useState(false);
   const [error, setError] = useState('');
-  const [syncMessage, setSyncMessage] = useState('');
 
   const loadData = useCallback(async () => {
     try {
@@ -97,20 +101,6 @@ export default function DashboardPage() {
     void loadData();
   }, [loadData]);
 
-  const triggerSync = async () => {
-    try {
-      setIsSyncing(true);
-      setSyncMessage('');
-      const response = await api.post('/products/sync-smarttrade');
-      setSyncMessage(response.data.message);
-      await loadData();
-    } catch {
-      setSyncMessage('SmartTrade sync could not be completed.');
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
   if (!stats && !error) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center text-gray-500">
@@ -123,23 +113,12 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-6 lg:p-8">
       <div className="mx-auto max-w-7xl">
-        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm font-medium text-blue-600">Operational overview</p>
-            <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-            <p className="mt-1 text-sm text-gray-500">
-              Live inventory, sales, supplier and stock-movement signals.
-            </p>
-          </div>
-
-          <button
-            onClick={triggerSync}
-            disabled={isSyncing}
-            className="flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-400"
-          >
-            <RefreshCw className={isSyncing ? 'animate-spin' : ''} size={18} />
-            {isSyncing ? 'Syncing...' : 'Sync SmartTrade'}
-          </button>
+        <div className="mb-8">
+          <p className="text-sm font-medium text-blue-600">Business overview</p>
+          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+          <p className="mt-1 text-sm text-gray-500">
+            Inventory, quotes, customers, sales and supplier signals in one place.
+          </p>
         </div>
 
         {error && (
@@ -150,7 +129,7 @@ export default function DashboardPage() {
 
         {stats && (
           <>
-            <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
               <StatCard
                 title="Inventory Value"
                 value={formatAmount(stats.totalInventoryValue)}
@@ -193,6 +172,81 @@ export default function DashboardPage() {
                 accentClass="text-cyan-600"
                 href="/suppliers"
               />
+              <StatCard
+                title="Customers"
+                value={stats.totalCustomers}
+                icon={<Users size={22} />}
+                accentClass="text-indigo-600"
+                href="/customers"
+              />
+              <StatCard
+                title="Active Quotes"
+                value={stats.activeQuotes}
+                icon={<FileText size={22} />}
+                accentClass="text-blue-600"
+                href="/quotes"
+              />
+              <StatCard
+                title="Quote Pipeline"
+                value={formatAmount(stats.quotePipelineValue)}
+                icon={<TrendingUp size={22} />}
+                accentClass="text-emerald-600"
+                href="/quotes"
+              />
+              <StatCard
+                title="Outstanding Quotes"
+                value={formatAmount(stats.outstandingQuoteBalance)}
+                icon={<WalletCards size={22} />}
+                accentClass="text-amber-600"
+                href="/quotes"
+              />
+            </div>
+
+            <div className="mt-6 grid gap-4 md:grid-cols-3">
+              <Link
+                href="/inventory"
+                className="rounded-xl border border-violet-200 bg-violet-50 p-5 transition hover:border-violet-300"
+              >
+                <p className="text-sm font-medium text-violet-700">
+                  Units reserved by accepted quotes
+                </p>
+                <p className="mt-2 text-3xl font-bold text-violet-950">
+                  {stats.reservedUnits}
+                </p>
+                <p className="mt-2 text-xs text-violet-600">
+                  Protected from ordinary sales until the quote is converted or cancelled.
+                </p>
+              </Link>
+
+              <Link
+                href="/quotes"
+                className="rounded-xl border border-blue-200 bg-blue-50 p-5 transition hover:border-blue-300"
+              >
+                <p className="text-sm font-medium text-blue-700">
+                  Active sales pipeline
+                </p>
+                <p className="mt-2 text-3xl font-bold text-blue-950">
+                  {formatAmount(stats.quotePipelineValue)}
+                </p>
+                <p className="mt-2 text-xs text-blue-600">
+                  Draft, sent and accepted quotes still in play.
+                </p>
+              </Link>
+
+              <Link
+                href="/customers"
+                className="rounded-xl border border-green-200 bg-green-50 p-5 transition hover:border-green-300"
+              >
+                <p className="text-sm font-medium text-green-700">
+                  Customer base
+                </p>
+                <p className="mt-2 text-3xl font-bold text-green-950">
+                  {stats.totalCustomers}
+                </p>
+                <p className="mt-2 text-xs text-green-600">
+                  Customers captured automatically from quotes and sales.
+                </p>
+              </Link>
             </div>
 
             <div className="mt-8 grid gap-6 xl:grid-cols-[1.5fr_1fr]">
@@ -386,27 +440,6 @@ export default function DashboardPage() {
               </DashboardPanel>
             </div>
 
-            <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-6">
-              <div className="flex items-start gap-3">
-                <CircleOff className="mt-0.5 shrink-0 text-amber-700" size={21} />
-                <div>
-                  <h2 className="font-semibold text-amber-950">
-                    SmartTrade integration pending
-                  </h2>
-                  <p className="mt-1 text-sm leading-6 text-amber-800">
-                    Local inventory, sales and movement metrics above are live. The
-                    SmartTrade adapter is still a placeholder, so discrepancy counts and
-                    external sync history will remain unavailable until the real API is
-                    connected.
-                  </p>
-                  {syncMessage && (
-                    <p className="mt-3 text-sm font-medium text-amber-900">
-                      {syncMessage}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
           </>
         )}
       </div>
