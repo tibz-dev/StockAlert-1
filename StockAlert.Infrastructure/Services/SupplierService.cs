@@ -26,6 +26,7 @@ public class SupplierService : ISupplierService
 
         var products = await _context.Products
             .AsNoTracking()
+            .Where(product => !product.IsDeleted)
             .Select(product => new
             {
                 product.Id,
@@ -69,7 +70,16 @@ public class SupplierService : ISupplierService
                     supplier.CompanyName,
                     supplier.ContactEmail,
                     supplierProducts.Count,
-                    lowStockCount
+                    lowStockCount,
+                    supplierProducts
+                        .Select(product => product.Id)
+                        .Join(
+                            _context.Products.AsNoTracking(),
+                            id => id,
+                            product => product.Id,
+                            (id, product) => product.Name)
+                        .OrderBy(name => name)
+                        .ToList()
                 );
             })
             .ToList();
@@ -79,6 +89,55 @@ public class SupplierService : ISupplierService
     {
         var suppliers = await GetAllAsync();
         return suppliers.FirstOrDefault(supplier => supplier.Id == id);
+    }
+
+    public async Task<IReadOnlyList<SupplierProductDto>> GetProductsAsync(
+        Guid id)
+    {
+        var products = await _context.Products
+            .AsNoTracking()
+            .Where(product =>
+                product.SupplierId == id
+                && !product.IsDeleted)
+            .OrderBy(product => product.Name)
+            .ToListAsync();
+
+        var productIds = products.Select(product => product.Id).ToList();
+
+        var reserved = await _context.QuoteItems
+            .AsNoTracking()
+            .Where(item =>
+                productIds.Contains(item.ProductId)
+                && item.Quote != null
+                && item.Quote.Status == QuoteStatus.Accepted)
+            .GroupBy(item => item.ProductId)
+            .Select(group => new
+            {
+                ProductId = group.Key,
+                Quantity = group.Sum(item => item.Quantity)
+            })
+            .ToDictionaryAsync(
+                item => item.ProductId,
+                item => item.Quantity);
+
+        return products.Select(product =>
+        {
+            var reservedQuantity = reserved.GetValueOrDefault(product.Id);
+            var available = Math.Max(
+                0,
+                product.StockQuantity - reservedQuantity);
+
+            return new SupplierProductDto(
+                product.Id,
+                product.Name,
+                product.Barcode,
+                product.Price,
+                product.StockQuantity,
+                reservedQuantity,
+                available,
+                available < LowStockThreshold
+            );
+        }).ToList();
     }
 
     public async Task<Guid> CreateAsync(CreateSupplierRequest request)
