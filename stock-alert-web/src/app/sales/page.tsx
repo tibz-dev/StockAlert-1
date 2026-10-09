@@ -15,6 +15,12 @@ import {
   X,
 } from 'lucide-react';
 import api from '@/lib/api';
+import {
+  enqueueOfflineSale,
+  getOfflineCache,
+  getOrCreateDeviceId,
+  setOfflineCache,
+} from '@/lib/offline';
 import type { Product } from '@/types/inventory';
 import type { BusinessProfile } from '@/types/business';
 import type { Customer, PreparedDelivery } from '@/types/quote';
@@ -81,7 +87,9 @@ export default function SalesPage() {
         api.get<Sale[]>('/sales'),
         api.get<Product[]>('/products'),
         api.get<BusinessProfile>('/business-profile'),
-        api.get<StaffMember[]>('/staff', { params: { activeOnly: true } }),
+        api.get<StaffMember[]>('/staff', {
+          params: { activeOnly: true },
+        }),
       ]);
 
       setSales(salesResponse.data);
@@ -89,12 +97,19 @@ export default function SalesPage() {
       setBusiness(businessResponse.data);
       setStaff(staffResponse.data);
 
+      await Promise.all([
+        setOfflineCache('products', productsResponse.data),
+        setOfflineCache('business', businessResponse.data),
+        setOfflineCache('staff', staffResponse.data),
+      ]);
+
       setProductId((current) => {
         if (
           current &&
           productsResponse.data.some(
             (product) =>
-              product.id === current && product.availableQuantity > 0,
+              product.id === current &&
+              product.availableQuantity > 0,
           )
         ) {
           return current;
@@ -107,7 +122,59 @@ export default function SalesPage() {
         );
       });
     } catch {
-      setError('Unable to load sales data.');
+      if (
+        typeof navigator !== 'undefined' &&
+        !navigator.onLine
+      ) {
+        const [
+          cachedProducts,
+          cachedBusiness,
+          cachedStaff,
+        ] = await Promise.all([
+          getOfflineCache<Product[]>('products'),
+          getOfflineCache<BusinessProfile>('business'),
+          getOfflineCache<StaffMember[]>('staff'),
+        ]);
+
+        if (cachedProducts?.value) {
+          setProducts(cachedProducts.value);
+          setBusiness(cachedBusiness?.value ?? null);
+          setStaff(cachedStaff?.value ?? []);
+          setSales([]);
+
+          setProductId((current) => {
+            if (
+              current &&
+              cachedProducts.value.some(
+                (product) =>
+                  product.id === current &&
+                  product.availableQuantity > 0,
+              )
+            ) {
+              return current;
+            }
+
+            return (
+              cachedProducts.value.find(
+                (product) =>
+                  product.availableQuantity > 0,
+              )?.id ?? ''
+            );
+          });
+
+          setSuccessMessage(
+            `Offline catalogue loaded from ${new Date(
+              cachedProducts.cachedAt,
+            ).toLocaleString()}.`,
+          );
+        } else {
+          setError(
+            'No offline product cache is available yet. Connect once and open Sales before relying on offline mode.',
+          );
+        }
+      } else {
+        setError('Unable to load sales data.');
+      }
     } finally {
       setLoading(false);
     }
@@ -184,7 +251,9 @@ export default function SalesPage() {
     [sales],
   );
 
-  const recordSale = async (event: React.FormEvent<HTMLFormElement>) => {
+  const recordSale = async (
+    event: React.FormEvent<HTMLFormElement>,
+  ) => {
     event.preventDefault();
     setError('');
     setSuccessMessage('');
@@ -206,20 +275,94 @@ export default function SalesPage() {
       return;
     }
 
+    const operationId = crypto.randomUUID();
+    const clientCreatedAt = new Date().toISOString();
+    const deviceId = getOrCreateDeviceId();
+
+    const baseRequest = {
+      productId: selectedProduct.id,
+      quantity: parsedQuantity,
+      salespersonId: salespersonId || null,
+      customerName: customerName.trim() || null,
+      customerCompanyName:
+        customerCompanyName.trim() || null,
+      customerEmail: customerEmail.trim() || null,
+      customerPhoneNumber:
+        customerPhoneNumber.trim() || null,
+      customerWhatsAppNumber:
+        customerWhatsAppNumber.trim() || null,
+      customerHasWhatsApp,
+      customerAddress: customerAddress.trim() || null,
+      clientOperationId: operationId,
+      deviceId,
+      clientCreatedAt,
+      offlineUnitPrice: selectedProduct.price,
+    };
+
+    const queueSale = async () => {
+      const queuedRequest = {
+        ...baseRequest,
+        wasQueuedOffline: true,
+      };
+
+      await enqueueOfflineSale({
+        operationId,
+        request: queuedRequest,
+        productName: selectedProduct.name,
+        estimatedTotal,
+        queuedAt: clientCreatedAt,
+        status: 'pending',
+        error: null,
+      });
+
+      const updatedProducts = products.map((product) =>
+        product.id === selectedProduct.id
+          ? {
+              ...product,
+              stockQuantity: Math.max(
+                0,
+                product.stockQuantity - parsedQuantity,
+              ),
+              availableQuantity: Math.max(
+                0,
+                product.availableQuantity - parsedQuantity,
+              ),
+              soldQuantity:
+                product.soldQuantity + parsedQuantity,
+            }
+          : product,
+      );
+
+      setProducts(updatedProducts);
+      await setOfflineCache('products', updatedProducts);
+      setQuantity('1');
+      setSuccessMessage(
+        `Sale queued offline for ${selectedProduct.name}. It will sync automatically when connectivity returns.`,
+      );
+    };
+
+    if (
+      typeof navigator !== 'undefined' &&
+      !navigator.onLine
+    ) {
+      try {
+        setRecording(true);
+        await queueSale();
+      } catch {
+        setError('Unable to store the offline sale on this device.');
+      } finally {
+        setRecording(false);
+      }
+
+      return;
+    }
+
     try {
       setRecording(true);
 
       const response = await api.post<SaleReceipt>('/sales', {
-        productId: selectedProduct.id,
-        quantity: parsedQuantity,
-        salespersonId: salespersonId || null,
-        customerName: customerName.trim() || null,
-        customerCompanyName: customerCompanyName.trim() || null,
-        customerEmail: customerEmail.trim() || null,
-        customerPhoneNumber: customerPhoneNumber.trim() || null,
-        customerWhatsAppNumber: customerWhatsAppNumber.trim() || null,
-        customerHasWhatsApp,
-        customerAddress: customerAddress.trim() || null,
+        ...baseRequest,
+        wasQueuedOffline: false,
       });
 
       setQuantity('1');
@@ -231,9 +374,36 @@ export default function SalesPage() {
       await loadData();
 
       window.setTimeout(() => setSuccessMessage(''), 4000);
-    } catch {
+    } catch (requestError: unknown) {
+      const response =
+        typeof requestError === 'object' &&
+        requestError !== null &&
+        'response' in requestError
+          ? (
+              requestError as {
+                response?: {
+                  status?: number;
+                  data?: { message?: string };
+                };
+              }
+            ).response
+          : undefined;
+
+      if (!response) {
+        try {
+          await queueSale();
+          return;
+        } catch {
+          setError(
+            'Connection was lost and the sale could not be saved to the offline queue.',
+          );
+          return;
+        }
+      }
+
       setError(
-        'Unable to record the sale. Check available unreserved stock and try again.',
+        response.data?.message ??
+          'Unable to record the sale. Check available unreserved stock and try again.',
       );
     } finally {
       setRecording(false);
