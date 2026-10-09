@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   BarChart3,
+  BriefcaseBusiness,
   FileText,
   History,
   ListRestart,
@@ -24,6 +25,7 @@ const menuItems = [
   { name: 'Suppliers', href: '/suppliers', icon: Truck },
   { name: 'Quotes', href: '/quotes', icon: FileText },
   { name: 'Customers', href: '/customers', icon: Users },
+  { name: 'Staff', href: '/staff', icon: BriefcaseBusiness },
   { name: 'Sales', href: '/sales', icon: ReceiptText },
   { name: 'Reports', href: '/reports', icon: BarChart3 },
   { name: 'Business Settings', href: '/settings/business', icon: Settings2 },
