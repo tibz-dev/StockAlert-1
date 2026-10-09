@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using StockAlert.Application.DTOs;
@@ -33,7 +34,15 @@ public class SalesController : ControllerBase
     {
         try
         {
-            var receipt = await _productService.RecordSaleAsync(request);
+            var salespersonFallback =
+                User.FindFirstValue(ClaimTypes.Name)
+                ?? User.FindFirstValue(ClaimTypes.Email)
+                ?? User.FindFirstValue(ClaimTypes.NameIdentifier)
+                ?? "Unknown User";
+
+            var receipt = await _productService.RecordSaleAsync(
+                request,
+                salespersonFallback);
 
             if (receipt == null)
             {
