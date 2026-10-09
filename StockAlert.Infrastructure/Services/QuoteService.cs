@@ -26,6 +26,7 @@ public class QuoteService : IQuoteService
             .Include(quote => quote.Customer)
             .Include(quote => quote.Items)
                 .ThenInclude(item => item.Product)
+            .Include(quote => quote.Payments)
             .OrderByDescending(quote => quote.CreatedAt)
             .ToListAsync();
 
@@ -43,6 +44,7 @@ public class QuoteService : IQuoteService
             .Include(item => item.Customer)
             .Include(item => item.Items)
                 .ThenInclude(item => item.Product)
+            .Include(item => item.Payments)
             .FirstOrDefaultAsync(item => item.Id == id);
 
         if (quote == null)
@@ -155,6 +157,16 @@ public class QuoteService : IQuoteService
             MidpointRounding.AwayFromZero);
         quote.Total = quote.Subtotal + quote.VatAmount;
 
+        var depositRequired = request.DepositRequired ?? 0m;
+
+        if (depositRequired < 0 || depositRequired > quote.Total)
+        {
+            throw new ArgumentException(
+                "Deposit required must be between zero and the quote total.");
+        }
+
+        quote.DepositRequired = depositRequired;
+
         _context.Quotes.Add(quote);
         await _context.SaveChangesAsync(default);
 
@@ -177,6 +189,7 @@ public class QuoteService : IQuoteService
             .Include(item => item.Customer)
             .Include(item => item.Items)
                 .ThenInclude(item => item.Product)
+            .Include(item => item.Payments)
             .FirstOrDefaultAsync(item => item.Id == id);
 
         if (quote == null)
@@ -248,6 +261,7 @@ public class QuoteService : IQuoteService
             .Include(item => item.Customer)
             .Include(item => item.Items)
                 .ThenInclude(item => item.Product)
+            .Include(item => item.Payments)
             .FirstOrDefaultAsync(item => item.Id == id);
 
         if (quote == null)
@@ -271,6 +285,14 @@ public class QuoteService : IQuoteService
         {
             throw new InvalidOperationException(
                 "The quote has no items to convert.");
+        }
+
+        var amountPaid = quote.Payments.Sum(payment => payment.Amount);
+
+        if (quote.DepositRequired > 0 && amountPaid < quote.DepositRequired)
+        {
+            throw new InvalidOperationException(
+                $"Required deposit is {quote.DepositRequired:0.00}, but only {amountPaid:0.00} has been recorded.");
         }
 
         foreach (var item in quote.Items)
@@ -349,6 +371,67 @@ public class QuoteService : IQuoteService
                 customer.Address
             )
         );
+    }
+
+    public async Task<QuoteDto?> RecordPaymentAsync(
+        Guid id,
+        RecordQuotePaymentRequest request,
+        string recordedBy)
+    {
+        if (request.Amount <= 0)
+        {
+            throw new ArgumentException(
+                "Payment amount must be greater than zero.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Method))
+        {
+            throw new ArgumentException("Payment method is required.");
+        }
+
+        var quote = await _context.Quotes
+            .Include(item => item.Customer)
+            .Include(item => item.Items)
+                .ThenInclude(item => item.Product)
+            .Include(item => item.Payments)
+            .FirstOrDefaultAsync(item => item.Id == id);
+
+        if (quote == null)
+        {
+            return null;
+        }
+
+        if (quote.Status is QuoteStatus.Cancelled
+            or QuoteStatus.Rejected
+            or QuoteStatus.Expired)
+        {
+            throw new InvalidOperationException(
+                "Payments cannot be recorded against an inactive quote.");
+        }
+
+        var currentPaid = quote.Payments.Sum(payment => payment.Amount);
+        var remaining = quote.Total - currentPaid;
+
+        if (request.Amount > remaining)
+        {
+            throw new InvalidOperationException(
+                $"Payment exceeds the outstanding balance of {remaining:0.00}.");
+        }
+
+        quote.Payments.Add(new QuotePayment
+        {
+            Id = Guid.NewGuid(),
+            Amount = request.Amount,
+            Method = request.Method.Trim(),
+            Reference = Normalize(request.Reference),
+            PaidAt = request.PaidAt ?? DateTime.UtcNow,
+            RecordedBy = Normalize(recordedBy)
+        });
+
+        await _context.SaveChangesAsync(default);
+
+        var reservedByProduct = await GetReservedByProductAsync();
+        return ToDto(quote, reservedByProduct);
     }
 
     private async Task<Customer> ResolveCustomerAsync(
@@ -467,6 +550,15 @@ public class QuoteService : IQuoteService
             quote.VatRate,
             quote.VatAmount,
             quote.Total,
+            quote.DepositRequired,
+            quote.Payments.Sum(payment => payment.Amount),
+            Math.Max(
+                0m,
+                quote.Total - quote.Payments.Sum(payment => payment.Amount)),
+            GetPaymentStatus(
+                quote.Total,
+                quote.DepositRequired,
+                quote.Payments.Sum(payment => payment.Amount)),
             quote.CreatedBy,
             quote.Items.Select(item =>
             {
@@ -486,8 +578,41 @@ public class QuoteService : IQuoteService
                     reserved,
                     Math.Max(0, onHand - reserved)
                 );
-            }).ToList()
+            }).ToList(),
+            quote.Payments
+                .OrderByDescending(payment => payment.PaidAt)
+                .Select(payment => new QuotePaymentDto(
+                    payment.Id,
+                    payment.Amount,
+                    payment.Method,
+                    payment.Reference,
+                    payment.PaidAt,
+                    payment.RecordedBy
+                ))
+                .ToList()
         );
+    }
+
+    private static string GetPaymentStatus(
+        decimal total,
+        decimal depositRequired,
+        decimal amountPaid)
+    {
+        if (amountPaid >= total && total > 0)
+        {
+            return "Paid";
+        }
+
+        if (amountPaid > 0)
+        {
+            return amountPaid >= depositRequired && depositRequired > 0
+                ? "Deposit Paid"
+                : "Partially Paid";
+        }
+
+        return depositRequired > 0
+            ? "Deposit Outstanding"
+            : "Unpaid";
     }
 
     private static string GenerateReceiptNumber()
