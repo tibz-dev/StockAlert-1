@@ -11,5 +11,6 @@ public record CreateQuoteRequest(
     string? CustomerAddress,
     DateTime? ValidUntil,
     string? Notes,
+    decimal? DepositRequired,
     List<CreateQuoteItemRequest> Items
 );
