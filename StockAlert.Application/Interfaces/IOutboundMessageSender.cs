@@ -4,6 +4,8 @@ namespace StockAlert.Application.Interfaces;
 
 public interface IOutboundMessageSender
 {
+    CommunicationStatusDto GetStatus();
+
     Task<OutboundMessageResult> SendEmailAsync(
         string destination,
         string subject,
