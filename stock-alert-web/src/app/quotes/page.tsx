@@ -287,8 +287,7 @@ export default function QuotesPage() {
                               label="Print"
                             />
 
-                            {quote.status !== 'Converted' &&
-                              quote.status !== 'Cancelled' &&
+                            {quote.status !== 'Cancelled' &&
                               quote.status !== 'Rejected' &&
                               quote.status !== 'Expired' &&
                               quote.balanceDue > 0 && (
