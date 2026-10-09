@@ -190,8 +190,31 @@ export default function SalesPage() {
 
   const lookupBarcode = async () => {
     const value = barcode.trim();
+    const normalized = value.replace(/\D/g, '');
 
-    if (!value) return;
+    if (!normalized) return;
+
+    const localProduct = products.find(
+      (product) => product.barcode === normalized,
+    );
+
+    if (localProduct) {
+      setProductId(localProduct.id);
+      setBarcode(normalized);
+      setError('');
+      setSuccessMessage(
+        `Scanned ${localProduct.name} successfully${navigator.onLine ? '' : ' from the offline catalogue'}.`,
+      );
+      window.setTimeout(() => setSuccessMessage(''), 2200);
+      return;
+    }
+
+    if (!navigator.onLine) {
+      setError(
+        'This barcode is not in the cached StockAlert catalogue. Unknown products require internet or must be added when connectivity returns.',
+      );
+      return;
+    }
 
     try {
       setLookingUpBarcode(true);
@@ -203,7 +226,7 @@ export default function SalesPage() {
         isLocalProduct: boolean;
         productId: string | null;
         productName: string | null;
-      }>(`/barcodes/${value}`);
+      }>(`/barcodes/${normalized}`);
 
       if (response.data.isLocalProduct && response.data.productId) {
         setProductId(response.data.productId);
