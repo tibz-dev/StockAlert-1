@@ -11,6 +11,11 @@ public class Sale
     public Customer? Customer { get; set; }
 
     public string? ReceiptNumber { get; set; }
+
+    public Guid? SalespersonId { get; set; }
+    public StaffMember? Salesperson { get; set; }
+    public string? SalespersonName { get; set; }
+
     public int Quantity { get; set; }
     public DateTime SaleDate { get; set; } = DateTime.UtcNow;
     public decimal TotalPrice { get; set; }
