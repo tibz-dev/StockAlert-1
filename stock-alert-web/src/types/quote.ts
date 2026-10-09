@@ -34,6 +34,8 @@ export interface Quote {
   id: string;
   quoteNumber: string;
   customer: Customer;
+  salespersonId: string | null;
+  salespersonName: string | null;
   status: string;
   createdAt: string;
   validUntil: string;
@@ -45,6 +47,7 @@ export interface Quote {
   vatRate: number;
   vatAmount: number;
   total: number;
+  depositPercentage: number;
   depositRequired: number;
   amountPaid: number;
   balanceDue: number;
@@ -62,6 +65,8 @@ export interface PreparedDelivery {
   destination: string;
   status: string;
   actionUrl: string;
+  providerReference: string | null;
+  errorMessage: string | null;
 }
 
 export interface QuoteConversion {
