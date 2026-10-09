@@ -6,19 +6,17 @@ import { Loader2 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import OfflineSyncManager from '@/components/OfflineSyncManager';
 
-function isTokenExpired(token: string) {
+function getTokenExpiry(token: string): number | null {
   try {
     const payload = token.split('.')[1];
-    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const normalized = payload
+      .replace(/-/g, '+')
+      .replace(/_/g, '/');
     const decoded = JSON.parse(window.atob(normalized));
 
-    if (!decoded.exp) {
-      return false;
-    }
-
-    return decoded.exp * 1000 <= Date.now();
+    return decoded.exp ? decoded.exp * 1000 : null;
   } catch {
-    return true;
+    return null;
   }
 }
 
@@ -28,6 +26,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const isPublicRoute = pathname === '/login';
   const isPrintRoute = pathname.endsWith('/print');
   const [checkingAuth, setCheckingAuth] = useState(!isPublicRoute);
+  const [offlineGrace, setOfflineGrace] = useState(false);
 
   useEffect(() => {
     if (isPublicRoute) {
@@ -37,13 +36,33 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
     const token = window.localStorage.getItem('token');
 
-    if (!token || isTokenExpired(token)) {
-      window.localStorage.removeItem('token');
+    if (!token) {
       router.replace('/login');
       return;
     }
 
-    setCheckingAuth(false);
+    const expiry = getTokenExpiry(token);
+    const expired = expiry !== null && expiry <= Date.now();
+
+    if (expired) {
+      const offlineGraceUntil =
+        (expiry ?? 0) + 24 * 60 * 60 * 1000;
+
+      if (
+        !navigator.onLine &&
+        Date.now() <= offlineGraceUntil
+      ) {
+        setOfflineGrace(true);
+        setCheckingAuth(false);
+      } else {
+        window.localStorage.removeItem('token');
+        router.replace('/login');
+        return;
+      }
+    } else {
+      setOfflineGrace(false);
+      setCheckingAuth(false);
+    }
 
     if ('serviceWorker' in navigator) {
       void navigator.serviceWorker.register('/sw.js');
@@ -69,6 +88,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     <>
       <Sidebar />
       <main className="min-h-screen flex-1 overflow-y-auto bg-gray-50">
+        {offlineGrace && (
+          <div className="border-b border-orange-200 bg-orange-50 px-4 py-2 text-xs font-semibold text-orange-800">
+            Offline session grace is active. Reconnect within 24 hours of token expiry to re-authenticate and sync queued work.
+          </div>
+        )}
         <OfflineSyncManager />
         {children}
       </main>
