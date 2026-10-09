@@ -33,6 +33,7 @@ public class StaffController : ControllerBase
             : Ok(staff);
     }
 
+    [Authorize(Roles = "Owner")]
     [HttpPost]
     public async Task<IActionResult> Create(CreateStaffMemberRequest request)
     {
@@ -51,6 +52,7 @@ public class StaffController : ControllerBase
         }
     }
 
+    [Authorize(Roles = "Owner")]
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(
         Guid id,
