@@ -85,18 +85,6 @@ public class ProductService : IProductService
                 "Another active product already uses this barcode.");
         }
 
-        var barcode = NormalizeBarcode(request.Barcode);
-
-        if (barcode != null &&
-            await _context.Products.AnyAsync(item =>
-                item.Id != id
-                && item.Barcode == barcode
-                && !item.IsDeleted))
-        {
-            throw new InvalidOperationException(
-                "Another active product already uses this barcode.");
-        }
-
         var category = await GetOrCreateCategoryAsync(request.CategoryName);
         var supplier = await GetOrCreateSupplierAsync(
             request.SupplierName,
@@ -132,9 +120,21 @@ public class ProductService : IProductService
         var product = await _context.Products
             .FirstOrDefaultAsync(p => p.Id == id);
 
-        if (product == null)
+        if (product == null || product.IsDeleted)
         {
             return false;
+        }
+
+        var barcode = NormalizeBarcode(request.Barcode);
+
+        if (barcode != null &&
+            await _context.Products.AnyAsync(item =>
+                item.Id != id
+                && item.Barcode == barcode
+                && !item.IsDeleted))
+        {
+            throw new InvalidOperationException(
+                "Another active product already uses this barcode.");
         }
 
         var category = await GetOrCreateCategoryAsync(request.CategoryName);
@@ -192,7 +192,7 @@ public class ProductService : IProductService
         }
 
         var product = await _context.Products
-            .FirstOrDefaultAsync(p => p.Id == id);
+            .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
 
         if (product == null)
         {
