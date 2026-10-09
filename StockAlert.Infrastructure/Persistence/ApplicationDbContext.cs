@@ -242,7 +242,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
 
             entity.HasIndex(product => product.Barcode)
                 .IsUnique()
-                .HasFilter("[Barcode] IS NOT NULL");
+                .HasFilter("[Barcode] IS NOT NULL AND [IsDeleted] = 0");
         });
         modelBuilder.Entity<Sale>(entity =>
         {
