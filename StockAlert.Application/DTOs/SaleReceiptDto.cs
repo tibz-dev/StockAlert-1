@@ -8,5 +8,7 @@ public record SaleReceiptDto(
     decimal UnitPrice,
     decimal TotalPrice,
     DateTime SaleDate,
+    Guid? SalespersonId,
+    string? SalespersonName,
     CustomerDto? Customer
 );
