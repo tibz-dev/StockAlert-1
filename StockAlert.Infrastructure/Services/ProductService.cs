@@ -350,6 +350,37 @@ public class ProductService : IProductService
             .AsNoTracking()
             .CountAsync();
 
+        var totalCustomers = await _context.Customers
+            .AsNoTracking()
+            .CountAsync();
+
+        var today = DateTime.UtcNow.Date;
+
+        var activeQuotes = await _context.Quotes
+            .AsNoTracking()
+            .Where(quote =>
+                quote.Status == QuoteStatus.Accepted
+                || ((quote.Status == QuoteStatus.Draft
+                    || quote.Status == QuoteStatus.Sent)
+                    && quote.ValidUntil >= today))
+            .Include(quote => quote.Payments)
+            .ToListAsync();
+
+        var activeQuoteCount = activeQuotes.Count;
+        var quotePipelineValue = activeQuotes.Sum(quote => quote.Total);
+        var outstandingQuoteBalance = activeQuotes.Sum(quote =>
+            Math.Max(
+                0m,
+                quote.Total - quote.Payments.Sum(payment => payment.Amount)));
+
+        var reservedUnits = await _context.QuoteItems
+            .AsNoTracking()
+            .Where(item =>
+                item.Quote != null
+                && item.Quote.Status == QuoteStatus.Accepted)
+            .Select(item => (int?)item.Quantity)
+            .SumAsync() ?? 0;
+
         var topSellingProducts = await _context.Sales
             .AsNoTracking()
             .GroupBy(sale => sale.ProductId)
@@ -441,6 +472,11 @@ public class ProductService : IProductService
             TotalSalesRevenue: totalSalesRevenue,
             TotalUnitsSold: totalUnitsSold,
             TotalSuppliers: totalSuppliers,
+            TotalCustomers: totalCustomers,
+            ActiveQuotes: activeQuoteCount,
+            QuotePipelineValue: quotePipelineValue,
+            OutstandingQuoteBalance: outstandingQuoteBalance,
+            ReservedUnits: reservedUnits,
             TopSellingProducts: topSellingProducts,
             RecentSales: recentSales,
             RecentStockMovements: recentStockMovements,
