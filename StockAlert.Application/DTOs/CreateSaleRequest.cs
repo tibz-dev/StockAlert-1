@@ -15,5 +15,6 @@ public record CreateSaleRequest(
     string? DeviceId = null,
     DateTime? ClientCreatedAt = null,
     bool WasQueuedOffline = false,
-    decimal? OfflineUnitPrice = null
+    decimal? OfflineUnitPrice = null,
+    decimal? OfflineExpectedTotal = null
 );
