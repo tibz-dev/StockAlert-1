@@ -123,4 +123,35 @@ public class QuotesController : ControllerBase
             return Conflict(new { message = ex.Message });
         }
     }
+
+    [HttpPost("{id:guid}/payments")]
+    public async Task<IActionResult> RecordPayment(
+        Guid id,
+        RecordQuotePaymentRequest request)
+    {
+        try
+        {
+            var recordedBy =
+                User.FindFirstValue(ClaimTypes.Email)
+                ?? User.FindFirstValue(ClaimTypes.NameIdentifier)
+                ?? "Unknown User";
+
+            var quote = await _quoteService.RecordPaymentAsync(
+                id,
+                request,
+                recordedBy);
+
+            return quote == null
+                ? NotFound(new { message = "Quote not found." })
+                : Ok(quote);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+    }
 }
