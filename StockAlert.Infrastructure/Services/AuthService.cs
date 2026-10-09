@@ -43,6 +43,27 @@ public class AuthService
 
             if (owners.Count == 0)
             {
+                var bootstrapOwnerEmail =
+                    _config["Security:BootstrapOwnerEmail"]?.Trim();
+
+                var totalUsers = await _userManager.Users.CountAsync();
+
+                var canBootstrapOwner =
+                    (!string.IsNullOrWhiteSpace(bootstrapOwnerEmail)
+                        && string.Equals(
+                            user.Email,
+                            bootstrapOwnerEmail,
+                            StringComparison.OrdinalIgnoreCase))
+                    || totalUsers == 1;
+
+                if (!canBootstrapOwner)
+                {
+                    return new AuthResponse(
+                        false,
+                        "",
+                        "No owner is configured. Set Security:BootstrapOwnerEmail to the authorised owner email.");
+                }
+
                 await _userManager.AddToRoleAsync(user, "Owner");
                 roles = new[] { "Owner" };
             }
