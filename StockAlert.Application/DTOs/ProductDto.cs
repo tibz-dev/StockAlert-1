@@ -4,6 +4,7 @@ public record ProductDto(
     Guid Id,
     string Name,
     string? Description,
+    string? Barcode,
     decimal Price,
     int StockQuantity,
     string CategoryName,
