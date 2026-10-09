@@ -22,6 +22,37 @@ public class OutboundMessageSender : IOutboundMessageSender
         _httpClientFactory = httpClientFactory;
     }
 
+    public CommunicationStatusDto GetStatus()
+    {
+        var emailConfigured =
+            !string.IsNullOrWhiteSpace(
+                _configuration["Communication:Smtp:Host"])
+            && !string.IsNullOrWhiteSpace(
+                _configuration["Communication:Smtp:FromEmail"]);
+
+        var twilioBaseConfigured =
+            !string.IsNullOrWhiteSpace(
+                _configuration["Communication:Twilio:AccountSid"])
+            && !string.IsNullOrWhiteSpace(
+                _configuration["Communication:Twilio:AuthToken"]);
+
+        var smsConfigured =
+            twilioBaseConfigured
+            && !string.IsNullOrWhiteSpace(
+                _configuration["Communication:Twilio:SmsFromNumber"]);
+
+        var whatsAppConfigured =
+            twilioBaseConfigured
+            && !string.IsNullOrWhiteSpace(
+                _configuration[
+                    "Communication:Twilio:WhatsAppFromNumber"]);
+
+        return new CommunicationStatusDto(
+            emailConfigured,
+            smsConfigured,
+            whatsAppConfigured);
+    }
+
     public async Task<OutboundMessageResult> SendEmailAsync(
         string destination,
         string subject,
