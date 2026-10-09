@@ -126,7 +126,9 @@ export default function QuotesPage() {
       } else if (response.data.actionUrl) {
         window.location.href = response.data.actionUrl;
         setSuccess(
-          `${channel} provider is not configured, so the manual fallback was opened.`,
+          response.data.status === 'PendingProviderConfiguration'
+            ? `${channel} provider is not configured, so the manual fallback was opened.`
+            : `${channel} automatic delivery failed; the manual fallback was opened.`,
         );
       } else {
         throw new Error(
