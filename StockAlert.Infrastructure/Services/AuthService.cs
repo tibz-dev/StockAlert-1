@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using StockAlert.Application.DTOs;
@@ -13,10 +14,15 @@ public class AuthService
 {
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IConfiguration _config;
+    private readonly RoleManager<IdentityRole> _roleManager;
 
-    public AuthService(UserManager<ApplicationUser> userManager, IConfiguration config)
+    public AuthService(
+        UserManager<ApplicationUser> userManager,
+        RoleManager<IdentityRole> roleManager,
+        IConfiguration config)
     {
         _userManager = userManager;
+        _roleManager = roleManager;
         _config = config;
     }
 
@@ -28,15 +34,40 @@ public class AuthService
             return new AuthResponse(false, "", "Invalid Credentials");
         }
 
+        await EnsureRolesAsync();
+        var roles = await _userManager.GetRolesAsync(user);
+
+        if (roles.Count == 0)
+        {
+            var owners = await _userManager.GetUsersInRoleAsync("Owner");
+
+            if (owners.Count == 0)
+            {
+                await _userManager.AddToRoleAsync(user, "Owner");
+                roles = new[] { "Owner" };
+            }
+            else
+            {
+                await _userManager.AddToRoleAsync(user, "Staff");
+                roles = new[] { "Staff" };
+            }
+        }
+
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.NameIdentifier, user.Id),
+            new(ClaimTypes.Email, user.Email!),
+            new(ClaimTypes.Name, user.FullName)
+        };
+
+        claims.AddRange(
+            roles.Select(role => new Claim(ClaimTypes.Role, role)));
+
         var tokenHandler = new JwtSecurityTokenHandler();
         var key = Encoding.ASCII.GetBytes(_config["Jwt:Key"]!);
         var tokenDescriptor = new SecurityTokenDescriptor
         {
-            Subject = new ClaimsIdentity(new[] {
-                new Claim(ClaimTypes.NameIdentifier, user.Id),
-                new Claim(ClaimTypes.Email, user.Email!),
-                new Claim(ClaimTypes.Name, user.FullName)
-            }),
+            Subject = new ClaimsIdentity(claims),
             Expires = DateTime.UtcNow.AddDays(7),
             Issuer = _config["Jwt:Issuer"],
             Audience = _config["Jwt:Audience"],
@@ -47,10 +78,31 @@ public class AuthService
         return new AuthResponse(true, tokenHandler.WriteToken(token), "Success");
     }
 
-    public async Task<AuthResponse> RegisterAsync(string email, string password, string fullName)
+    public async Task<AuthResponse> RegisterAsync(
+        string email,
+        string password,
+        string fullName)
     {
+        await EnsureRolesAsync();
+
         var existingUser = await _userManager.FindByEmailAsync(email);
-        if (existingUser != null) return new AuthResponse(false, "", "Email already registered");
+        if (existingUser != null)
+        {
+            return new AuthResponse(
+                false,
+                "",
+                "Email already registered");
+        }
+
+        var hasAnyUsers = await _userManager.Users.AnyAsync();
+
+        if (hasAnyUsers)
+        {
+            return new AuthResponse(
+                false,
+                "",
+                "Public registration is closed. The business owner must create staff access.");
+        }
 
         var user = new ApplicationUser
         {
@@ -60,9 +112,33 @@ public class AuthService
         };
 
         var result = await _userManager.CreateAsync(user, password);
-        if (!result.Succeeded)
-            return new AuthResponse(false, "", string.Join(", ", result.Errors.Select(e => e.Description)));
 
-        return new AuthResponse(true, "", "User created successfully. Please login.");
+        if (!result.Succeeded)
+        {
+            return new AuthResponse(
+                false,
+                "",
+                string.Join(
+                    ", ",
+                    result.Errors.Select(error => error.Description)));
+        }
+
+        await _userManager.AddToRoleAsync(user, "Owner");
+
+        return new AuthResponse(
+            true,
+            "",
+            "Owner account created successfully. Please login.");
+    }
+
+    private async Task EnsureRolesAsync()
+    {
+        foreach (var role in new[] { "Owner", "Manager", "Sales", "Stock", "Staff" })
+        {
+            if (!await _roleManager.RoleExistsAsync(role))
+            {
+                await _roleManager.CreateAsync(new IdentityRole(role));
+            }
+        }
     }
 }
