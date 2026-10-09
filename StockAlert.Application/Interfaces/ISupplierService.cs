@@ -6,6 +6,7 @@ public interface ISupplierService
 {
     Task<IReadOnlyList<SupplierDto>> GetAllAsync();
     Task<SupplierDto?> GetByIdAsync(Guid id);
+    Task<IReadOnlyList<SupplierProductDto>> GetProductsAsync(Guid id);
     Task<Guid> CreateAsync(CreateSupplierRequest request);
     Task<bool> UpdateAsync(Guid id, UpdateSupplierRequest request);
     Task<bool> DeleteAsync(Guid id);
