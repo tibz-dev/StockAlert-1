@@ -133,6 +133,11 @@ export default function ReceiptPrintPage() {
           {customer.phoneNumber && (
             <p className="text-sm text-gray-500">{customer.phoneNumber}</p>
           )}
+          {document.salespersonName && (
+            <p className="mt-2 text-sm font-medium text-gray-700">
+              Sold by: {document.salespersonName}
+            </p>
+          )}
         </section>
 
         <section className="overflow-hidden rounded-lg border border-gray-200">
