@@ -44,7 +44,8 @@ public class QuotesController : ControllerBase
         try
         {
             var createdBy =
-                User.FindFirstValue(ClaimTypes.Email)
+                User.FindFirstValue(ClaimTypes.Name)
+                ?? User.FindFirstValue(ClaimTypes.Email)
                 ?? User.FindFirstValue(ClaimTypes.NameIdentifier)
                 ?? "Unknown User";
 
@@ -132,7 +133,8 @@ public class QuotesController : ControllerBase
         try
         {
             var recordedBy =
-                User.FindFirstValue(ClaimTypes.Email)
+                User.FindFirstValue(ClaimTypes.Name)
+                ?? User.FindFirstValue(ClaimTypes.Email)
                 ?? User.FindFirstValue(ClaimTypes.NameIdentifier)
                 ?? "Unknown User";
 
