@@ -84,6 +84,8 @@ public class DocumentDeliveryService : IDocumentDeliveryService
             receiptSales[0].SaleDate,
             customerDto,
             business,
+            sale.SalespersonId,
+            sale.SalespersonName,
             receiptSales.Sum(item => item.TotalPrice),
             receiptSales.Select(item => new ReceiptLineDto(
                 item.Product?.Name ?? "Unknown Product",
@@ -246,6 +248,12 @@ public class DocumentDeliveryService : IDocumentDeliveryService
         builder.AppendLine(
             $"Date: {firstSale.SaleDate.ToLocalTime():yyyy-MM-dd HH:mm}");
         builder.AppendLine($"Customer: {customer.FullName}");
+
+        if (!string.IsNullOrWhiteSpace(firstSale.SalespersonName))
+        {
+            builder.AppendLine($"Salesperson: {firstSale.SalespersonName}");
+        }
+
         builder.AppendLine();
 
         foreach (var sale in sales)
@@ -311,6 +319,11 @@ public class DocumentDeliveryService : IDocumentDeliveryService
         builder.AppendLine($"QUOTE: {quote.QuoteNumber}");
         builder.AppendLine($"Customer: {customer.FullName}");
 
+        if (!string.IsNullOrWhiteSpace(quote.SalespersonName))
+        {
+            builder.AppendLine($"Salesperson: {quote.SalespersonName}");
+        }
+
         if (!string.IsNullOrWhiteSpace(customer.CompanyName))
         {
             builder.AppendLine($"Company: {customer.CompanyName}");
@@ -347,7 +360,8 @@ public class DocumentDeliveryService : IDocumentDeliveryService
         if (quote.DepositRequired > 0)
         {
             builder.AppendLine(
-                $"Deposit required: {profile.CurrencyCode} {quote.DepositRequired.ToString("0.00", CultureInfo.InvariantCulture)}");
+                $"Deposit required ({quote.DepositPercentage.ToString("0.##", CultureInfo.InvariantCulture)}%): " +
+                $"{profile.CurrencyCode} {quote.DepositRequired.ToString("0.00", CultureInfo.InvariantCulture)}");
         }
 
         if (amountPaid > 0)
