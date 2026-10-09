@@ -264,6 +264,41 @@ public class ProductService : IProductService
             return null;
         }
 
+        if (request.ClientOperationId.HasValue)
+        {
+            var existingSale = await _context.Sales
+                .AsNoTracking()
+                .Include(sale => sale.Product)
+                .Include(sale => sale.Customer)
+                .FirstOrDefaultAsync(sale =>
+                    sale.ClientOperationId
+                        == request.ClientOperationId.Value);
+
+            if (existingSale != null)
+            {
+                var existingUnitPrice = existingSale.Quantity > 0
+                    ? existingSale.TotalPrice / existingSale.Quantity
+                    : 0m;
+
+                return new SaleReceiptDto(
+                    existingSale.Id,
+                    existingSale.ReceiptNumber
+                        ?? "Existing Receipt",
+                    existingSale.Product?.Name
+                        ?? "Unknown Product",
+                    existingSale.Quantity,
+                    existingUnitPrice,
+                    existingSale.TotalPrice,
+                    existingSale.SaleDate,
+                    existingSale.SalespersonId,
+                    existingSale.SalespersonName,
+                    existingSale.Customer == null
+                        ? null
+                        : ToCustomerDto(existingSale.Customer)
+                );
+            }
+        }
+
         var product = await _context.Products
             .FirstOrDefaultAsync(item =>
                 item.Id == request.ProductId && !item.IsDeleted);
@@ -271,6 +306,86 @@ public class ProductService : IProductService
         if (product == null)
         {
             return null;
+        }
+
+        DateTime saleDate;
+        string? deviceId = null;
+
+        if (request.WasQueuedOffline)
+        {
+            if (!request.ClientOperationId.HasValue)
+            {
+                throw new InvalidOperationException(
+                    "Offline sale is missing its operation ID.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.DeviceId))
+            {
+                throw new InvalidOperationException(
+                    "Offline sale is missing its device ID.");
+            }
+
+            if (!request.ClientCreatedAt.HasValue)
+            {
+                throw new InvalidOperationException(
+                    "Offline sale is missing its original transaction time.");
+            }
+
+            if (!request.OfflineUnitPrice.HasValue
+                || request.OfflineUnitPrice.Value <= 0)
+            {
+                throw new InvalidOperationException(
+                    "Offline sale is missing its cached unit price.");
+            }
+
+            saleDate = request.ClientCreatedAt.Value.Kind == DateTimeKind.Utc
+                ? request.ClientCreatedAt.Value
+                : request.ClientCreatedAt.Value.ToUniversalTime();
+
+            var now = DateTime.UtcNow;
+
+            if (saleDate > now.AddMinutes(5))
+            {
+                throw new InvalidOperationException(
+                    "Offline sale timestamp is in the future. Check the device clock.");
+            }
+
+            if (saleDate < now.AddDays(-7))
+            {
+                throw new InvalidOperationException(
+                    "Offline sale is older than seven days and requires manual reconciliation.");
+            }
+
+            var cachedPrice = decimal.Round(
+                request.OfflineUnitPrice.Value,
+                2,
+                MidpointRounding.AwayFromZero);
+
+            var currentPrice = decimal.Round(
+                product.Price,
+                2,
+                MidpointRounding.AwayFromZero);
+
+            if (cachedPrice != currentPrice)
+            {
+                throw new InvalidOperationException(
+                    $"Offline price conflict for {product.Name}. " +
+                    $"Cached price was {cachedPrice:0.00}; current price is {currentPrice:0.00}.");
+            }
+
+            deviceId = request.DeviceId.Trim();
+
+            if (deviceId.Length > 100)
+            {
+                deviceId = deviceId[..100];
+            }
+        }
+        else
+        {
+            saleDate = DateTime.UtcNow;
+            deviceId = string.IsNullOrWhiteSpace(request.DeviceId)
+                ? null
+                : request.DeviceId.Trim();
         }
 
         var reservedQuantity = await GetReservedQuantityAsync(product.Id);
@@ -311,8 +426,12 @@ public class ProductService : IProductService
             SalespersonId = salesperson.Staff?.Id,
             Salesperson = salesperson.Staff,
             SalespersonName = salesperson.Name,
+            ClientOperationId = request.ClientOperationId,
+            DeviceId = deviceId,
+            ClientCreatedAt = request.ClientCreatedAt,
+            WasQueuedOffline = request.WasQueuedOffline,
             Quantity = request.Quantity,
-            SaleDate = DateTime.UtcNow,
+            SaleDate = saleDate,
             TotalPrice = totalPrice
         };
 
