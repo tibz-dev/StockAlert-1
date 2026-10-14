@@ -130,16 +130,29 @@ public class ProductsController : ControllerBase
         }
     }
 
+    [Authorize(Roles = "Owner,Manager")]
     [HttpPost("sync-smarttrade")]
     public async Task<IActionResult> SyncSmartTrade()
     {
-        var updatedItems = await _productService.SyncWithSmartTradeAsync();
-
-        return Ok(new
+        try
         {
-            message = $"Sync complete. {updatedItems} products updated.",
-            timestamp = DateTime.UtcNow
-        });
+            var updatedItems =
+                await _productService.SyncWithSmartTradeAsync();
+
+            return Ok(new
+            {
+                message =
+                    $"Sync complete. {updatedItems} products updated.",
+                timestamp = DateTime.UtcNow
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new
+            {
+                message = ex.Message
+            });
+        }
     }
 
     [HttpGet("report/csv")]
