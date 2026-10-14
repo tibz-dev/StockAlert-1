@@ -689,35 +689,10 @@ public class ProductService : IProductService
         );
     }
 
-    public async Task<int> SyncWithSmartTradeAsync()
+    public Task<int> SyncWithSmartTradeAsync()
     {
-        var externalProducts = await _externalStockService.SyncFromExternalAsync();
-        var updateCount = 0;
-
-        foreach (var externalProduct in externalProducts)
-        {
-            if (string.IsNullOrWhiteSpace(externalProduct.ExternalId))
-            {
-                continue;
-            }
-
-            var localProduct = await _context.Products
-                .FirstOrDefaultAsync(p => p.ExternalId == externalProduct.ExternalId);
-
-            if (localProduct != null
-                && localProduct.StockQuantity != externalProduct.StockQuantity)
-            {
-                localProduct.StockQuantity = externalProduct.StockQuantity;
-                updateCount++;
-            }
-        }
-
-        if (updateCount > 0)
-        {
-            await _context.SaveChangesAsync(default);
-        }
-
-        return updateCount;
+        throw new InvalidOperationException(
+            "Direct SmartTrade quantity overwrite is disabled. Create a SmartTrade-backed stocktake snapshot and reconcile physical counts instead.");
     }
 
     public async Task<byte[]> GenerateStockReportAsync()
