@@ -227,6 +227,34 @@ public class OwnerReportWorker : BackgroundService
                     && log.Timestamp < toExclusive,
                 cancellationToken);
 
+        var completedStocktakes = await context.StocktakeSessions
+            .AsNoTracking()
+            .Include(session => session.Items)
+            .Where(session =>
+                session.CompletedAt.HasValue
+                && session.CompletedAt.Value >= fromDate.Date
+                && session.CompletedAt.Value < toExclusive)
+            .ToListAsync(cancellationToken);
+
+        var stocktakeVarianceItems = completedStocktakes.Sum(session =>
+            session.Items.Count(item =>
+                item.FinalCount.HasValue
+                && item.FinalCount.Value != item.ExpectedQuantity));
+
+        var stocktakeRecounts = completedStocktakes.Sum(session =>
+            session.Items.Count(item => item.SecondCount.HasValue));
+
+        var stocktakeVarianceValue = completedStocktakes.Sum(session =>
+            session.Items
+                .Where(item =>
+                    item.FinalCount.HasValue
+                    && item.FinalCount.Value != item.ExpectedQuantity)
+                .Sum(item =>
+                    Math.Abs(
+                        item.FinalCount!.Value
+                        - item.ExpectedQuantity)
+                    * item.UnitValue));
+
         var body = BuildBody(
             cadence,
             fromDate,
@@ -236,6 +264,10 @@ public class OwnerReportWorker : BackgroundService
             summary.UnitsSold,
             summary.TotalInventoryValue,
             summary.LowStockProducts,
+            completedStocktakes.Count,
+            stocktakeVarianceItems,
+            stocktakeRecounts,
+            stocktakeVarianceValue,
             auditCount,
             auditLogs);
 
@@ -261,6 +293,10 @@ public class OwnerReportWorker : BackgroundService
         int unitsSold,
         decimal inventoryValue,
         int lowStockProducts,
+        int stocktakeCount,
+        int stocktakeVarianceItems,
+        int stocktakeRecounts,
+        decimal stocktakeVarianceValue,
         int auditCount,
         IReadOnlyList<AuditLog> logs)
     {
@@ -277,6 +313,13 @@ public class OwnerReportWorker : BackgroundService
         builder.AppendLine($"Units sold: {unitsSold}");
         builder.AppendLine($"Current inventory value: {inventoryValue:0.00}");
         builder.AppendLine($"Current low-stock products: {lowStockProducts}");
+        builder.AppendLine();
+
+        builder.AppendLine("STOCK CONTROL");
+        builder.AppendLine($"Completed stocktakes: {stocktakeCount}");
+        builder.AppendLine($"Variance items: {stocktakeVarianceItems}");
+        builder.AppendLine($"Recounted items: {stocktakeRecounts}");
+        builder.AppendLine($"Variance exposure: {stocktakeVarianceValue:0.00}");
         builder.AppendLine();
 
         builder.AppendLine("AUDIT TRAIL");
