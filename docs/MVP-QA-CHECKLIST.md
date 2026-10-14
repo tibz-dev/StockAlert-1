@@ -188,3 +188,34 @@ Do not pitch as production-ready until:
 - [ ] Owner/security tests green
 - [ ] Offline duplicate/conflict tests green
 
+
+
+## 13. Stocktake / SmartTrade reconciliation
+
+- [ ] Stocktakes page loads
+- [ ] Owner/Manager can create a StockAlert-backed test session
+- [ ] Ordinary staff cannot create a stocktake session
+- [ ] Blind count hides expected quantity from ordinary counter before first submission
+- [ ] Owner/Manager can see expected snapshot for supervision
+- [ ] Barcode scan selects the correct stocktake item
+- [ ] Product without barcode can be selected manually
+- [ ] Matching first count changes item to Matched
+- [ ] Non-matching first count changes item to RecountRequired
+- [ ] Same signed-in user cannot submit both first count and recount
+- [ ] Independent recount matching expected stock changes item to Matched
+- [ ] Independent recount confirming a variance changes item to NeedsReview
+- [ ] Disagreeing first/second counts change item to NeedsReview
+- [ ] Only Owner/Manager can approve a variance
+- [ ] Resolution reason is mandatory
+- [ ] Session cannot complete while Pending/RecountRequired/NeedsReview items remain
+- [ ] Completed session does not automatically alter Product.StockQuantity
+- [ ] StocktakeStarted appears in Audit Trail
+- [ ] CountSubmitted appears in Audit Trail
+- [ ] RecountSubmitted appears in Audit Trail
+- [ ] VarianceApproved appears in Audit Trail
+- [ ] StocktakeCompleted appears in Audit Trail
+- [ ] Owner report includes completed stocktakes, variance items, recounts and variance exposure
+- [ ] Legacy /products/sync-smarttrade endpoint refuses direct quantity overwrite
+- [ ] Legacy automatic StockSyncWorker is not registered
+- [ ] Selecting SmartTrade source fails clearly while provider integration is not configured
+- [ ] When SmartTrade integration is connected, source snapshot does not mutate live physical counts
