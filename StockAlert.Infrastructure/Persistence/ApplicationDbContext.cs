@@ -34,6 +34,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
     public DbSet<QuotePayment> QuotePayments => Set<QuotePayment>();
     public DbSet<StaffMember> StaffMembers => Set<StaffMember>();
     public DbSet<OwnerReportSettings> OwnerReportSettings => Set<OwnerReportSettings>();
+    public DbSet<StocktakeSession> StocktakeSessions => Set<StocktakeSession>();
+    public DbSet<StocktakeItem> StocktakeItems => Set<StocktakeItem>();
     
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
@@ -52,6 +54,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
                 || entry.Entity is ApplicationUser
                 || entry.Entity is Customer
                 || entry.Entity is DeliveryLog
+                || entry.Entity is StocktakeSession
+                || entry.Entity is StocktakeItem
                 || IsIdentityEntity(entry.Entity.GetType())
                 || entry.State == EntityState.Detached
                 || entry.State == EntityState.Unchanged)
@@ -206,6 +210,86 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<StocktakeSession>(entity =>
+        {
+            entity.Property(session => session.ReferenceNumber)
+                .HasMaxLength(50);
+
+            entity.Property(session => session.Title)
+                .HasMaxLength(200);
+
+            entity.Property(session => session.Location)
+                .HasMaxLength(200);
+
+            entity.Property(session => session.Zone)
+                .HasMaxLength(200);
+
+            entity.Property(session => session.Source)
+                .HasMaxLength(100);
+
+            entity.Property(session => session.Status)
+                .HasConversion<string>()
+                .HasMaxLength(50);
+
+            entity.Property(session => session.CreatedBy)
+                .HasMaxLength(256);
+
+            entity.Property(session => session.CompletedBy)
+                .HasMaxLength(256);
+
+            entity.HasIndex(session => session.ReferenceNumber)
+                .IsUnique();
+
+            entity.HasIndex(session => session.CreatedAt);
+        });
+
+        modelBuilder.Entity<StocktakeItem>(entity =>
+        {
+            entity.Property(item => item.ProductName)
+                .HasMaxLength(300);
+
+            entity.Property(item => item.Barcode)
+                .HasMaxLength(50);
+
+            entity.Property(item => item.ExternalProductId)
+                .HasMaxLength(150);
+
+            entity.Property(item => item.UnitValue)
+                .HasPrecision(18, 2);
+
+            entity.Property(item => item.FirstCountedBy)
+                .HasMaxLength(256);
+
+            entity.Property(item => item.SecondCountedBy)
+                .HasMaxLength(256);
+
+            entity.Property(item => item.ApprovedBy)
+                .HasMaxLength(256);
+
+            entity.Property(item => item.ResolutionReason)
+                .HasMaxLength(1000);
+
+            entity.Property(item => item.Status)
+                .HasConversion<string>()
+                .HasMaxLength(50);
+
+            entity.HasIndex(item => new
+            {
+                item.StocktakeSessionId,
+                item.Barcode
+            });
+
+            entity.HasOne(item => item.StocktakeSession)
+                .WithMany(session => session.Items)
+                .HasForeignKey(item => item.StocktakeSessionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(item => item.Product)
+                .WithMany()
+                .HasForeignKey(item => item.ProductId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
         modelBuilder.Entity<OwnerReportSettings>(entity =>
         {
             entity.Property(settings => settings.RecipientEmail)
