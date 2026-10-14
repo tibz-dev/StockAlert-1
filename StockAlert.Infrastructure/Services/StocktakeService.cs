@@ -635,12 +635,9 @@ public class StocktakeService : IStocktakeService
             item.Status == StocktakeItemStatus.Pending
             || item.Status == StocktakeItemStatus.RecountRequired);
 
-        var hasReview = session.Items.Any(item =>
-            item.Status == StocktakeItemStatus.NeedsReview);
-
-        session.Status = !hasPending && hasReview
-            ? StocktakeStatus.Review
-            : StocktakeStatus.Counting;
+        session.Status = hasPending
+            ? StocktakeStatus.Counting
+            : StocktakeStatus.Review;
     }
 
     private static void EnsureSessionOpen(
