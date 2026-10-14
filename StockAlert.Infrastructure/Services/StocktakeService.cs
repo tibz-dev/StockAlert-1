@@ -447,6 +447,7 @@ public class StocktakeService : IStocktakeService
     {
         return await _context.StocktakeItems
             .Include(item => item.StocktakeSession)
+                .ThenInclude(session => session!.Items)
             .FirstOrDefaultAsync(item =>
                 item.Id == itemId
                 && item.StocktakeSessionId == sessionId);
