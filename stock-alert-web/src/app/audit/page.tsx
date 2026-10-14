@@ -203,6 +203,11 @@ export default function AuditPage() {
                 <option value="Archived">Archived</option>
                 <option value="QuoteCreated">Quote created</option>
                 <option value="PaymentRecorded">Payment recorded</option>
+                <option value="StocktakeStarted">Stocktake started</option>
+                <option value="CountSubmitted">Count submitted</option>
+                <option value="RecountSubmitted">Recount submitted</option>
+                <option value="VarianceApproved">Variance approved</option>
+                <option value="StocktakeCompleted">Stocktake completed</option>
                 <option value="Modified">Modified</option>
                 <option value="Added">Added</option>
                 <option value="Deleted">Deleted</option>
