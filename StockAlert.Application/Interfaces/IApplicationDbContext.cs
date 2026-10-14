@@ -20,5 +20,7 @@ public interface IApplicationDbContext
     DbSet<QuotePayment> QuotePayments { get; }
     DbSet<StaffMember> StaffMembers { get; }
     DbSet<OwnerReportSettings> OwnerReportSettings { get; }
+    DbSet<StocktakeSession> StocktakeSessions { get; }
+    DbSet<StocktakeItem> StocktakeItems { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 }
