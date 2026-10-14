@@ -51,7 +51,9 @@ builder.Services
         options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
     });
 
-builder.Services.AddHostedService<StockSyncWorker>();
+// Automatic SmartTrade quantity overwrite is intentionally disabled.
+// StockAlert now snapshots external expected stock into stocktake sessions
+// and reconciles physical counts before any approved adjustment workflow.
 builder.Services.AddHostedService<OwnerReportWorker>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
