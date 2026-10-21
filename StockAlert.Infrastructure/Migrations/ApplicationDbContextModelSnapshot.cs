@@ -881,6 +881,151 @@ namespace StockAlert.Infrastructure.Migrations
                     b.ToTable("StockAdjustments");
                 });
 
+            modelBuilder.Entity("StockAlert.Domain.Entities.StocktakeItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ApprovedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("Barcode")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("ExpectedQuantity")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ExternalProductId")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<int?>("FinalCount")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("FirstCount")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("FirstCountedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("FirstCountedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<Guid?>("ProductId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ProductName")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("ResolutionReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int?>("SecondCount")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("SecondCountedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("SecondCountedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<Guid>("StocktakeSessionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("UnitValue")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("StocktakeSessionId", "Barcode");
+
+                    b.ToTable("StocktakeItems");
+                });
+
+            modelBuilder.Entity("StockAlert.Domain.Entities.StocktakeSession", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("BlindCount")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CompletedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("Location")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ReferenceNumber")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("SourceSnapshotAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Zone")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("ReferenceNumber")
+                        .IsUnique();
+
+                    b.ToTable("StocktakeSessions");
+                });
+
             modelBuilder.Entity("StockAlert.Domain.Entities.Supplier", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1053,6 +1198,24 @@ namespace StockAlert.Infrastructure.Migrations
                     b.Navigation("Product");
                 });
 
+            modelBuilder.Entity("StockAlert.Domain.Entities.StocktakeItem", b =>
+                {
+                    b.HasOne("StockAlert.Domain.Entities.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("StockAlert.Domain.Entities.StocktakeSession", "StocktakeSession")
+                        .WithMany("Items")
+                        .HasForeignKey("StocktakeSessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Product");
+
+                    b.Navigation("StocktakeSession");
+                });
+
             modelBuilder.Entity("StockAlert.Domain.Entities.Category", b =>
                 {
                     b.Navigation("Products");
@@ -1084,6 +1247,11 @@ namespace StockAlert.Infrastructure.Migrations
                     b.Navigation("Quotes");
 
                     b.Navigation("Sales");
+                });
+
+            modelBuilder.Entity("StockAlert.Domain.Entities.StocktakeSession", b =>
+                {
+                    b.Navigation("Items");
                 });
 #pragma warning restore 612, 618
         }
