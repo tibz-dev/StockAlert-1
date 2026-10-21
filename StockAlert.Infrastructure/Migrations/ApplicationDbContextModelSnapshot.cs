@@ -335,6 +335,46 @@ namespace StockAlert.Infrastructure.Migrations
                     b.ToTable("Sales");
                 });
 
+            modelBuilder.Entity("StockAlert.Domain.Entities.StockAdjustment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("NewQuantity")
+                        .HasColumnType("int");
+
+                    b.Property<string>("PerformedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<int>("PreviousQuantity")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("QuantityChange")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("ProductId");
+
+                    b.ToTable("StockAdjustments");
+                });
+
             modelBuilder.Entity("StockAlert.Domain.Entities.Supplier", b =>
                 {
                     b.Property<Guid>("Id")
@@ -420,6 +460,8 @@ namespace StockAlert.Infrastructure.Migrations
 
                     b.Navigation("Category");
 
+                    b.Navigation("StockAdjustments");
+
                     b.Navigation("Supplier");
                 });
 
@@ -429,6 +471,17 @@ namespace StockAlert.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("ProductId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("StockAlert.Domain.Entities.StockAdjustment", b =>
+                {
+                    b.HasOne("StockAlert.Domain.Entities.Product", "Product")
+                        .WithMany("StockAdjustments")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Product");

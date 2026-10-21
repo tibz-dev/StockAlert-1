@@ -5,16 +5,20 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   BarChart3,
   History,
+  ListRestart,
   LayoutDashboard,
   LogOut,
   Package,
   ReceiptText,
+  Truck,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
 const menuItems = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Inventory', href: '/inventory', icon: Package },
+  { name: 'Stock Movements', href: '/stock-movements', icon: ListRestart },
+  { name: 'Suppliers', href: '/suppliers', icon: Truck },
   { name: 'Sales', href: '/sales', icon: ReceiptText },
   { name: 'Reports', href: '/reports', icon: BarChart3 },
   { name: 'Audit Logs', href: '/audit', icon: History },

@@ -14,4 +14,6 @@ public class Product
     public Supplier? Supplier { get; set; }
     public string? ExternalId { get; set; } // The ID from SmartTrade
     public string? ExternalSource { get; set; } // e.g., "SmartTrade"
+
+    public ICollection<StockAdjustment> StockAdjustments { get; set; } = new List<StockAdjustment>();
 }

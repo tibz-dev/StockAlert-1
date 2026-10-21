@@ -13,6 +13,8 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        services.AddHttpContextAccessor();
+
         services.AddDbContext<ApplicationDbContext>(options =>
             options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
 
@@ -28,6 +30,9 @@ public static class DependencyInjection
 
         services.AddScoped<AuthService>();
         services.AddScoped<IProductService, ProductService>();
+        services.AddScoped<IStockMovementService, StockMovementService>();
+        services.AddScoped<ISupplierService, SupplierService>();
+        services.AddScoped<IReportingService, ReportingService>();
 
         services.AddHttpClient<IExternalStockService, SmartTradeAdapter>(client =>
         {

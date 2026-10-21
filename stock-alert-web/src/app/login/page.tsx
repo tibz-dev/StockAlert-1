@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, Lock, Mail } from 'lucide-react';
+import axios from 'axios';
 import api from '@/lib/api';
 
 export default function LoginPage() {
@@ -27,8 +28,26 @@ export default function LoginPage() {
       const response = await api.post('/auth/login', { email, password });
       window.localStorage.setItem('token', response.data.token);
       router.replace('/');
-    } catch {
-      setError('Login failed. Please check your email and password.');
+    } catch (loginError) {
+      if (axios.isAxiosError(loginError)) {
+        if (!loginError.response) {
+          setError(
+            'Cannot reach the StockAlert API. Make sure it is running on http://localhost:5198.',
+          );
+        } else if (loginError.response.status === 401) {
+          setError(
+            loginError.response.data?.message
+              ?? 'Invalid email or password.',
+          );
+        } else {
+          setError(
+            loginError.response.data?.message
+              ?? 'Login failed. Please try again.',
+          );
+        }
+      } else {
+        setError('Login failed. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
