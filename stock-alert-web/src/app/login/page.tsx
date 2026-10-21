@@ -14,8 +14,25 @@ export default function LoginPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (window.localStorage.getItem('token')) {
-      router.replace('/');
+    const token = window.localStorage.getItem('token');
+
+    if (!token) return;
+
+    try {
+      const payload = token.split('.')[1];
+      const normalized = payload
+        .replace(/-/g, '+')
+        .replace(/_/g, '/');
+      const decoded = JSON.parse(window.atob(normalized));
+      const expiry = decoded.exp
+        ? decoded.exp * 1000
+        : Number.POSITIVE_INFINITY;
+
+      if (expiry > Date.now()) {
+        router.replace('/');
+      }
+    } catch {
+      window.localStorage.removeItem('token');
     }
   }, [router]);
 

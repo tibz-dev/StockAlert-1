@@ -250,13 +250,17 @@ export default function InventoryPage() {
 
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1100px] border-collapse text-left">
+          <table className="w-full min-w-[1500px] border-collapse text-left">
             <thead className="border-b border-gray-200 bg-gray-50">
               <tr>
                 <th className="p-4 text-sm font-semibold text-gray-600">Product</th>
                 <th className="p-4 text-sm font-semibold text-gray-600">Category</th>
                 <th className="p-4 text-sm font-semibold text-gray-600">Supplier</th>
-                <th className="p-4 text-sm font-semibold text-gray-600">Stock</th>
+                <th className="p-4 text-sm font-semibold text-gray-600">On Hand</th>
+                <th className="p-4 text-sm font-semibold text-gray-600">Under Quote</th>
+                <th className="p-4 text-sm font-semibold text-gray-600">Reserved</th>
+                <th className="p-4 text-sm font-semibold text-gray-600">Available</th>
+                <th className="p-4 text-sm font-semibold text-gray-600">Sold</th>
                 <th className="p-4 text-sm font-semibold text-gray-600">Unit Price</th>
                 <th className="p-4 text-sm font-semibold text-gray-600">Status</th>
                 <th className="p-4 text-sm font-semibold text-gray-600">Actions</th>
@@ -287,6 +291,18 @@ export default function InventoryPage() {
                   </td>
                   <td className="p-4 font-mono text-sm font-semibold text-gray-800">
                     {product.stockQuantity}
+                  </td>
+                  <td className="p-4 font-mono text-sm font-semibold text-blue-700">
+                    {product.quotedQuantity}
+                  </td>
+                  <td className="p-4 font-mono text-sm font-semibold text-violet-700">
+                    {product.reservedQuantity}
+                  </td>
+                  <td className="p-4 font-mono text-sm font-semibold text-green-700">
+                    {product.availableQuantity}
+                  </td>
+                  <td className="p-4 font-mono text-sm font-semibold text-gray-600">
+                    {product.soldQuantity}
                   </td>
                   <td className="p-4 text-sm text-gray-800">
                     {product.price.toFixed(2)}
@@ -363,7 +379,7 @@ export default function InventoryPage() {
 
               {visibleProducts.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="p-10 text-center text-sm text-gray-500">
+                  <td colSpan={11} className="p-10 text-center text-sm text-gray-500">
                     No products match the current filters.
                   </td>
                 </tr>

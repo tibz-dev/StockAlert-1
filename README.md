@@ -290,3 +290,174 @@ No license has been added yet.
 ---
 
 Built as an inventory visibility, sales monitoring and reconciliation platform with ASP.NET Core, SQL Server and Next.js.
+
+
+## Pitch-ready MVP flow
+
+The current MVP is designed to demonstrate one complete small-business workflow:
+
+1. Configure the business profile, branch details, VAT, banking details, currency, quote validity, logo, and receipt footer.
+2. Add suppliers and products with physical stock.
+3. Create a customer quote with multiple products and an optional required deposit.
+4. Share the quote through prepared Email, SMS, or WhatsApp actions.
+5. Accept the quote to reserve inventory so ordinary sales cannot consume promised stock.
+6. Record deposits and other payments against the quote.
+7. Convert an accepted quote to a sale once the required deposit is satisfied.
+8. Generate a grouped receipt, share it with the customer, or print/save it as PDF.
+9. Track customers, sales, quote pipeline value, outstanding quote balances, reserved stock, low stock, suppliers, and reports from the dashboard.
+
+### MVP document handling
+
+Quotes and receipts have clean print views that use the configured business identity, branch information, address, VAT details, banking details, customer information, and document totals. Browser Print can be used to save these as PDF immediately.
+
+### Communication channels
+
+The MVP prepares and logs customer communication, then opens the appropriate Email, SMS, or WhatsApp action with the message pre-filled. Direct server-side delivery through SMTP, Twilio, or the WhatsApp Business API is intentionally left as the production integration layer so provider credentials are not hard-coded into the application.
+
+### Inventory terminology
+
+- **On Hand**: physical stock currently held by the business.
+- **Under Quote**: stock included on active sent or accepted quotes.
+- **Reserved**: quantities protected by accepted quotes.
+- **Available**: on-hand stock minus accepted-quote reservations.
+- **Sold**: cumulative units already recorded as sales.
+
+This distinction prevents accepted quotes from silently competing with ordinary sales for the same units.
+
+## Production next
+
+The MVP intentionally leaves these for the production hardening phase:
+
+- role-based permissions for Admin, Manager, Sales, and Stock users;
+- real Email/SMS/WhatsApp Business providers;
+- password reset and account administration;
+- hosted file/logo storage rather than URL-only branding;
+- payment gateway integration and automated reconciliation;
+- automated quote expiry reminders and follow-ups;
+- deployment secrets, production CORS, structured logging, monitoring, tests, and CI/CD;
+- optional SmartTrade/POS integration after confirmed API documentation and credentials.
+
+
+## Automated customer communication
+
+StockAlert can send quote and receipt messages automatically from the API.
+
+### Email
+
+Email uses standard SMTP configuration. Configure these as server environment variables rather than committing passwords:
+
+```text
+Communication__Smtp__Host
+Communication__Smtp__Port
+Communication__Smtp__Username
+Communication__Smtp__Password
+Communication__Smtp__FromEmail
+Communication__Smtp__FromName
+Communication__Smtp__EnableSsl
+```
+
+### SMS and WhatsApp
+
+SMS and WhatsApp use Twilio Programmable Messaging:
+
+```text
+Communication__Twilio__AccountSid
+Communication__Twilio__AuthToken
+Communication__Twilio__SmsFromNumber
+Communication__Twilio__WhatsAppFromNumber
+Communication__Twilio__WhatsAppContentSid
+```
+
+`WhatsAppContentSid` is optional for sandbox/customer-service-window testing. For business-initiated WhatsApp messages outside the customer-service window, configure an approved WhatsApp content template and its Content SID.
+
+The Business Settings screen exposes provider readiness as **Configured** or **Setup required**, but never exposes the credentials themselves.
+
+When a provider is configured, delivery happens server-side and the delivery log records the provider result. If a provider is missing or an automated send fails, StockAlert keeps the manual Email/SMS/WhatsApp action as a fallback instead of falsely reporting the document as sent.
+
+## Staff and salesperson attribution
+
+The Staff module stores salespeople and other staff separately from login accounts. Active staff can be selected when creating a quote or recording a direct sale.
+
+Every quote and sale stores both the selected staff ID and a salesperson-name snapshot. This keeps historical reports understandable even when staff information changes later.
+
+Sales reports now include salesperson performance by date range: transaction count, units sold, and revenue. Sales CSV exports include receipt number and salesperson.
+
+## Negotiated quote deposits
+
+Quotes support negotiated deposits as a percentage of the final quote total. The Create Quote screen calculates in real time:
+
+- subtotal;
+- VAT from Business Settings;
+- quote total;
+- negotiated deposit percentage;
+- calculated deposit amount;
+- balance remaining after the deposit.
+
+The backend recalculates and validates the deposit amount when the quote is saved, so the browser preview is not treated as the source of truth.
+
+
+## Barcode scanning and product identification
+
+StockAlert treats the barcode as a product identifier, not as the product name itself.
+
+The MVP barcode workflow is:
+
+1. A USB scanner, phone scanner, or keyboard-emulation scanner enters the barcode into StockAlert.
+2. StockAlert checks its own product catalogue first.
+3. If the barcode is unknown locally, the API performs a best-effort UPCitemdb lookup.
+4. If a product name is found, the Add Product screen prefills it for staff to verify.
+5. If no external match exists, staff captures the product details manually once and StockAlert permanently stores the barcode locally.
+
+This local-first design means ordinary scanning is not dependent on an external catalogue after the product has been created.
+
+### MVP scanner options
+
+Any scanner that behaves like a keyboard works with the barcode input. This includes ordinary USB HID scanners and smartphone scanner apps that send the scan as keyboard input.
+
+For resilience during internet outages, prefer a direct USB/Bluetooth HID scanner where possible. Wi-Fi phone scanner apps remain useful for demos and low-cost deployments.
+
+## Audit trail and soft delete
+
+Products use soft delete/archive semantics. Archived products disappear from normal inventory and sales selection, while historical sales, quotes and audit records remain intact.
+
+The Audit Trail now supports:
+
+- readable events such as Sold, StockAdjusted, Archived, QuoteCreated and PaymentRecorded;
+- user attribution and request IP address where available;
+- date-range and text/action filtering;
+- server-side pagination;
+- CSV export;
+- browser Print / Save as PDF.
+
+Audit logs are not deleted as part of normal UI workflows.
+
+## Owner-protected scheduled reporting
+
+StockAlert uses ASP.NET Identity roles. The protected reporting configuration is restricted server-side to the `Owner` role.
+
+For a legacy database with multiple existing users and no Owner role yet, configure the authorised owner explicitly:
+
+```text
+Security__BootstrapOwnerEmail=owner@example.com
+```
+
+The API will not automatically promote an arbitrary user when multiple legacy accounts exist.
+
+Owner reports can be scheduled Daily, Weekly, Monthly and Yearly. They contain operational metrics and an audit-trail digest. The worker runs inside the API process, so when the API is cloud hosted it continues even when a shop PC or browser is offline.
+
+Public registration is only available for initial owner bootstrap. After an account exists, staff access must be provisioned by the owner/admin workflow rather than by open public registration.
+
+## Loadshedding / offline roadmap
+
+The next resilience layer is an offline-capable web client:
+
+- cache the application shell and product/barcode catalogue as a PWA;
+- store offline work in IndexedDB;
+- assign each device a stable device ID and each offline transaction a client-generated operation ID;
+- queue sales and stock operations as **Pending Sync** rather than pretending they are already globally committed;
+- sync automatically when connectivity returns;
+- make the API idempotent so retrying an operation cannot double-sell or double-adjust stock;
+- show conflict/reconciliation states when another device changed stock while this device was offline;
+- keep cloud-hosted scheduled owner reports independent of the local browser.
+
+For an MVP with one checkout device, offline sales can use the last cached available stock. Multi-device offline selling needs conflict detection because two disconnected devices cannot know what the other has sold.

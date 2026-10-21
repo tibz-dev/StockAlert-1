@@ -1,0 +1,79 @@
+export interface Customer {
+  id: string;
+  fullName: string;
+  companyName: string | null;
+  email: string | null;
+  phoneNumber: string | null;
+  whatsAppNumber: string | null;
+  hasWhatsApp: boolean;
+  address: string | null;
+}
+
+export interface QuoteItem {
+  id: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
+  currentStock: number;
+  reservedQuantity: number;
+  availableQuantity: number;
+}
+
+export interface QuotePayment {
+  id: string;
+  amount: number;
+  method: string;
+  reference: string | null;
+  paidAt: string;
+  recordedBy: string | null;
+}
+
+export interface Quote {
+  id: string;
+  quoteNumber: string;
+  customer: Customer;
+  salespersonId: string | null;
+  salespersonName: string | null;
+  status: string;
+  createdAt: string;
+  validUntil: string;
+  sentAt: string | null;
+  acceptedAt: string | null;
+  convertedAt: string | null;
+  notes: string | null;
+  subtotal: number;
+  vatRate: number;
+  vatAmount: number;
+  total: number;
+  depositPercentage: number;
+  depositRequired: number;
+  amountPaid: number;
+  balanceDue: number;
+  paymentStatus: string;
+  createdBy: string | null;
+  items: QuoteItem[];
+  payments: QuotePayment[];
+}
+
+export interface PreparedDelivery {
+  deliveryLogId: string;
+  documentType: string;
+  documentId: string;
+  channel: string;
+  destination: string;
+  status: string;
+  actionUrl: string;
+  providerReference: string | null;
+  errorMessage: string | null;
+}
+
+export interface QuoteConversion {
+  quoteId: string;
+  quoteNumber: string;
+  primarySaleId: string;
+  receiptNumber: string;
+  total: number;
+  customer: Customer;
+}

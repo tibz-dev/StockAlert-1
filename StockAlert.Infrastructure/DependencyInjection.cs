@@ -26,6 +26,7 @@ public static class DependencyInjection
             {
                 options.User.RequireUniqueEmail = true;
             })
+            .AddRoles<IdentityRole>()
             .AddEntityFrameworkStores<ApplicationDbContext>();
 
         services.AddScoped<AuthService>();
@@ -33,13 +34,27 @@ public static class DependencyInjection
         services.AddScoped<IStockMovementService, StockMovementService>();
         services.AddScoped<ISupplierService, SupplierService>();
         services.AddScoped<IReportingService, ReportingService>();
+        services.AddScoped<IBusinessProfileService, BusinessProfileService>();
+        services.AddScoped<IQuoteService, QuoteService>();
+        services.AddScoped<IDocumentDeliveryService, DocumentDeliveryService>();
+        services.AddScoped<ICustomerService, CustomerService>();
+        services.AddScoped<IStaffService, StaffService>();
+        services.AddScoped<IOutboundMessageSender, OutboundMessageSender>();
+        services.AddScoped<IBarcodeLookupService, BarcodeLookupService>();
+        services.AddScoped<IStocktakeService, StocktakeService>();
 
-        services.AddHttpClient<IExternalStockService, SmartTradeAdapter>(client =>
+        services.AddHttpClient<SmartTradeAdapter>(client =>
         {
             client.BaseAddress = new Uri(
                 configuration["ExternalServices:SmartTradeUrl"]
                 ?? "https://api.smarttrade.com");
         });
+
+        services.AddScoped<IExternalStockService>(provider =>
+            provider.GetRequiredService<SmartTradeAdapter>());
+
+        services.AddScoped<IStockSourceAdapter>(provider =>
+            provider.GetRequiredService<SmartTradeAdapter>());
 
         return services;
     }

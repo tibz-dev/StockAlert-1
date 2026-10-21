@@ -12,5 +12,15 @@ public interface IApplicationDbContext
     DbSet<Sale> Sales { get; }
     DbSet<AuditLog> AuditLogs { get; }
     DbSet<StockAdjustment> StockAdjustments { get; }
+    DbSet<BusinessProfile> BusinessProfiles { get; }
+    DbSet<Customer> Customers { get; }
+    DbSet<Quote> Quotes { get; }
+    DbSet<QuoteItem> QuoteItems { get; }
+    DbSet<DeliveryLog> DeliveryLogs { get; }
+    DbSet<QuotePayment> QuotePayments { get; }
+    DbSet<StaffMember> StaffMembers { get; }
+    DbSet<OwnerReportSettings> OwnerReportSettings { get; }
+    DbSet<StocktakeSession> StocktakeSessions { get; }
+    DbSet<StocktakeItem> StocktakeItems { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 }

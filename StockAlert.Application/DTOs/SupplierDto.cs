@@ -5,5 +5,6 @@ public record SupplierDto(
     string CompanyName,
     string? ContactEmail,
     int ProductCount,
-    int LowStockProductCount
+    int LowStockProductCount,
+    List<string> ProductNames
 );

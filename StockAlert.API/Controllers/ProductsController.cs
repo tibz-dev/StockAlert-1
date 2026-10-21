@@ -45,6 +45,10 @@ public class ProductsController : ControllerBase
         {
             return BadRequest(new { message = ex.Message });
         }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
     }
 
     [HttpPut("{id:guid}")]
@@ -64,6 +68,10 @@ public class ProductsController : ControllerBase
         {
             return BadRequest(new { message = ex.Message });
         }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
     }
 
     [HttpDelete("{id:guid}")]
@@ -71,7 +79,15 @@ public class ProductsController : ControllerBase
     {
         try
         {
-            var deleted = await _productService.DeleteProductAsync(id);
+            var performedBy =
+                User.FindFirstValue(ClaimTypes.Name)
+                ?? User.FindFirstValue(ClaimTypes.Email)
+                ?? User.FindFirstValue(ClaimTypes.NameIdentifier)
+                ?? "Unknown User";
+
+            var deleted = await _productService.DeleteProductAsync(
+                id,
+                performedBy);
 
             return deleted
                 ? NoContent()
@@ -114,16 +130,29 @@ public class ProductsController : ControllerBase
         }
     }
 
+    [Authorize(Roles = "Owner,Manager")]
     [HttpPost("sync-smarttrade")]
     public async Task<IActionResult> SyncSmartTrade()
     {
-        var updatedItems = await _productService.SyncWithSmartTradeAsync();
-
-        return Ok(new
+        try
         {
-            message = $"Sync complete. {updatedItems} products updated.",
-            timestamp = DateTime.UtcNow
-        });
+            var updatedItems =
+                await _productService.SyncWithSmartTradeAsync();
+
+            return Ok(new
+            {
+                message =
+                    $"Sync complete. {updatedItems} products updated.",
+                timestamp = DateTime.UtcNow
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new
+            {
+                message = ex.Message
+            });
+        }
     }
 
     [HttpGet("report/csv")]

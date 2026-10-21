@@ -232,13 +232,26 @@ namespace StockAlert.Infrastructure.Migrations
 
                     b.Property<string>("Action")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("Changes")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("EntityId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<string>("EntityName")
                         .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Summary")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("Timestamp")
@@ -246,11 +259,115 @@ namespace StockAlert.Infrastructure.Migrations
 
                     b.Property<string>("UserId")
                         .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Timestamp");
+
+                    b.HasIndex("EntityName", "Action");
+
+                    b.ToTable("AuditLogs");
+                });
+
+            modelBuilder.Entity("StockAlert.Domain.Entities.BusinessProfile", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("AddressLine1")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("AddressLine2")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("BankAccountName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("BankAccountNumber")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("BankAccountType")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("BankBranchCode")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("BankName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("BranchName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("BranchNumber")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("BusinessName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("City")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Country")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CurrencyCode")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("DefaultVatRate")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<string>("Email")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsVatRegistered")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LogoUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PhoneNumber")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PostalCode")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Province")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("QuoteValidityDays")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ReceiptFooter")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RegistrationNumber")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("TradingName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("VatNumber")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Website")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("WhatsAppNumber")
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
-                    b.ToTable("AuditLogs");
+                    b.ToTable("BusinessProfiles");
                 });
 
             modelBuilder.Entity("StockAlert.Domain.Entities.Category", b =>
@@ -268,14 +385,172 @@ namespace StockAlert.Infrastructure.Migrations
                     b.ToTable("Categories");
                 });
 
+            modelBuilder.Entity("StockAlert.Domain.Entities.Customer", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Address")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CompanyName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Email")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("FullName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("HasWhatsApp")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("PhoneNumber")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("WhatsAppNumber")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Email");
+
+                    b.HasIndex("PhoneNumber");
+
+                    b.ToTable("Customers");
+                });
+
+            modelBuilder.Entity("StockAlert.Domain.Entities.DeliveryLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ActionUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Channel")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Destination")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("DocumentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("DocumentType")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ProviderReference")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DocumentType", "DocumentId");
+
+                    b.ToTable("DeliveryLogs");
+                });
+
+            modelBuilder.Entity("StockAlert.Domain.Entities.OwnerReportSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("DailyEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("LastDailySentAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("LastMonthlySentAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("LastWeeklySentAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("LastYearlySentAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("MonthlyDay")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("MonthlyEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("RecipientEmail")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<int>("SendHourLocal")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TimeZoneId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<int>("WeeklyDay")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("WeeklyEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("YearlyEnabled")
+                        .HasColumnType("bit");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("OwnerReportSettings");
+                });
+
             modelBuilder.Entity("StockAlert.Domain.Entities.Product", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("Barcode")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
                     b.Property<Guid>("CategoryId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
 
                     b.Property<string>("Description")
                         .HasColumnType("nvarchar(max)");
@@ -285,6 +560,9 @@ namespace StockAlert.Infrastructure.Migrations
 
                     b.Property<string>("ExternalSource")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -302,11 +580,166 @@ namespace StockAlert.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Barcode")
+                        .IsUnique()
+                        .HasFilter("[Barcode] IS NOT NULL AND [IsDeleted] = 0");
+
                     b.HasIndex("CategoryId");
 
                     b.HasIndex("SupplierId");
 
                     b.ToTable("Products");
+                });
+
+            modelBuilder.Entity("StockAlert.Domain.Entities.Quote", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("AcceptedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("ConvertedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("DepositPercentage")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<decimal>("DepositRequired")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("QuoteNumber")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<Guid?>("SalespersonId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("SalespersonName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("SentAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<decimal>("Subtotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("Total")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("ValidUntil")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("VatAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("VatRate")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerId");
+
+                    b.HasIndex("QuoteNumber")
+                        .IsUnique();
+
+                    b.HasIndex("SalespersonId");
+
+                    b.HasIndex("ValidUntil");
+
+                    b.ToTable("Quotes");
+                });
+
+            modelBuilder.Entity("StockAlert.Domain.Entities.QuoteItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("LineTotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("QuoteId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("QuoteId");
+
+                    b.ToTable("QuoteItems");
+                });
+
+            modelBuilder.Entity("StockAlert.Domain.Entities.QuotePayment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Method")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("PaidAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("QuoteId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("RecordedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Reference")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("QuoteId");
+
+                    b.ToTable("QuotePayments");
                 });
 
             modelBuilder.Entity("StockAlert.Domain.Entities.Sale", b =>
@@ -315,24 +748,97 @@ namespace StockAlert.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTime?>("ClientCreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ClientOperationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("CustomerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("DeviceId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<Guid>("ProductId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<int>("Quantity")
                         .HasColumnType("int");
 
+                    b.Property<string>("ReceiptNumber")
+                        .HasColumnType("nvarchar(450)");
+
                     b.Property<DateTime>("SaleDate")
                         .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("SalespersonId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("SalespersonName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<decimal>("TotalPrice")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<bool>("WasQueuedOffline")
+                        .HasColumnType("bit");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("ClientOperationId")
+                        .IsUnique()
+                        .HasFilter("[ClientOperationId] IS NOT NULL");
+
+                    b.HasIndex("CustomerId");
 
                     b.HasIndex("ProductId");
 
+                    b.HasIndex("ReceiptNumber");
+
+                    b.HasIndex("SalespersonId");
+
                     b.ToTable("Sales");
+                });
+
+            modelBuilder.Entity("StockAlert.Domain.Entities.StaffMember", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("FullName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("PhoneNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Email");
+
+                    b.ToTable("StaffMembers");
                 });
 
             modelBuilder.Entity("StockAlert.Domain.Entities.StockAdjustment", b =>
@@ -460,20 +966,80 @@ namespace StockAlert.Infrastructure.Migrations
 
                     b.Navigation("Category");
 
-                    b.Navigation("StockAdjustments");
-
                     b.Navigation("Supplier");
+                });
+
+            modelBuilder.Entity("StockAlert.Domain.Entities.Quote", b =>
+                {
+                    b.HasOne("StockAlert.Domain.Entities.Customer", "Customer")
+                        .WithMany("Quotes")
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StockAlert.Domain.Entities.StaffMember", "Salesperson")
+                        .WithMany("Quotes")
+                        .HasForeignKey("SalespersonId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("Salesperson");
+                });
+
+            modelBuilder.Entity("StockAlert.Domain.Entities.QuoteItem", b =>
+                {
+                    b.HasOne("StockAlert.Domain.Entities.Product", "Product")
+                        .WithMany("QuoteItems")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StockAlert.Domain.Entities.Quote", "Quote")
+                        .WithMany("Items")
+                        .HasForeignKey("QuoteId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Product");
+
+                    b.Navigation("Quote");
+                });
+
+            modelBuilder.Entity("StockAlert.Domain.Entities.QuotePayment", b =>
+                {
+                    b.HasOne("StockAlert.Domain.Entities.Quote", "Quote")
+                        .WithMany("Payments")
+                        .HasForeignKey("QuoteId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Quote");
                 });
 
             modelBuilder.Entity("StockAlert.Domain.Entities.Sale", b =>
                 {
+                    b.HasOne("StockAlert.Domain.Entities.Customer", "Customer")
+                        .WithMany("Sales")
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("StockAlert.Domain.Entities.Product", "Product")
                         .WithMany()
                         .HasForeignKey("ProductId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("StockAlert.Domain.Entities.StaffMember", "Salesperson")
+                        .WithMany("Sales")
+                        .HasForeignKey("SalespersonId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Customer");
+
                     b.Navigation("Product");
+
+                    b.Navigation("Salesperson");
                 });
 
             modelBuilder.Entity("StockAlert.Domain.Entities.StockAdjustment", b =>
@@ -490,6 +1056,34 @@ namespace StockAlert.Infrastructure.Migrations
             modelBuilder.Entity("StockAlert.Domain.Entities.Category", b =>
                 {
                     b.Navigation("Products");
+                });
+
+            modelBuilder.Entity("StockAlert.Domain.Entities.Customer", b =>
+                {
+                    b.Navigation("Quotes");
+
+                    b.Navigation("Sales");
+                });
+
+            modelBuilder.Entity("StockAlert.Domain.Entities.Product", b =>
+                {
+                    b.Navigation("QuoteItems");
+
+                    b.Navigation("StockAdjustments");
+                });
+
+            modelBuilder.Entity("StockAlert.Domain.Entities.Quote", b =>
+                {
+                    b.Navigation("Items");
+
+                    b.Navigation("Payments");
+                });
+
+            modelBuilder.Entity("StockAlert.Domain.Entities.StaffMember", b =>
+                {
+                    b.Navigation("Quotes");
+
+                    b.Navigation("Sales");
                 });
 #pragma warning restore 612, 618
         }

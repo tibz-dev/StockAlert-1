@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using StockAlert.Application.DTOs;
 using StockAlert.Application.Interfaces;
 using StockAlert.Domain.Entities;
+using StockAlert.Domain.Enums;
 
 namespace StockAlert.Infrastructure.Services;
 
@@ -11,46 +12,58 @@ public class ProductService : IProductService
 
     private readonly IApplicationDbContext _context;
     private readonly IExternalStockService _externalStockService;
+    private readonly IBusinessProfileService _businessProfileService;
 
     public ProductService(
         IApplicationDbContext context,
-        IExternalStockService externalStockService)
+        IExternalStockService externalStockService,
+        IBusinessProfileService businessProfileService)
     {
         _context = context;
         _externalStockService = externalStockService;
+        _businessProfileService = businessProfileService;
     }
 
     public async Task<IEnumerable<ProductDto>> GetAllProductsAsync()
     {
-        return await _context.Products
+        var products = await _context.Products
             .AsNoTracking()
-            .Include(p => p.Category)
-            .Include(p => p.Supplier)
-            .OrderBy(p => p.Name)
-            .Select(p => new ProductDto(
-                p.Id,
-                p.Name,
-                p.Description,
-                p.Price,
-                p.StockQuantity,
-                p.Category != null ? p.Category.Name : "N/A",
-                p.StockQuantity < LowStockThreshold,
-                p.Supplier != null ? p.Supplier.CompanyName : "N/A",
-                p.Supplier != null ? p.Supplier.ContactEmail : null,
-                p.ExternalId
-            ))
+            .Where(product => !product.IsDeleted)
+            .Include(product => product.Category)
+            .Include(product => product.Supplier)
+            .OrderBy(product => product.Name)
             .ToListAsync();
+
+        var metrics = await GetProductMetricsAsync(
+            products.Select(product => product.Id));
+
+        return products.Select(product =>
+            ToDto(
+                product,
+                metrics.GetValueOrDefault(
+                    product.Id,
+                    ProductMetrics.Empty)));
     }
 
     public async Task<ProductDto?> GetProductByIdAsync(Guid id)
     {
         var product = await _context.Products
             .AsNoTracking()
-            .Include(p => p.Category)
-            .Include(p => p.Supplier)
-            .FirstOrDefaultAsync(p => p.Id == id);
+            .Include(item => item.Category)
+            .Include(item => item.Supplier)
+            .FirstOrDefaultAsync(item =>
+                item.Id == id && !item.IsDeleted);
 
-        return product == null ? null : ToDto(product);
+        if (product == null)
+        {
+            return null;
+        }
+
+        var metrics = await GetProductMetricsAsync(new[] { id });
+
+        return ToDto(
+            product,
+            metrics.GetValueOrDefault(id, ProductMetrics.Empty));
     }
 
     public async Task<Guid> CreateProductAsync(CreateProductRequest request)
@@ -62,6 +75,16 @@ public class ProductService : IProductService
             request.CategoryName,
             request.SupplierName);
 
+        var barcode = NormalizeBarcode(request.Barcode);
+
+        if (barcode != null &&
+            await _context.Products.AnyAsync(product =>
+                product.Barcode == barcode && !product.IsDeleted))
+        {
+            throw new InvalidOperationException(
+                "Another active product already uses this barcode.");
+        }
+
         var category = await GetOrCreateCategoryAsync(request.CategoryName);
         var supplier = await GetOrCreateSupplierAsync(
             request.SupplierName,
@@ -72,6 +95,7 @@ public class ProductService : IProductService
             Id = Guid.NewGuid(),
             Name = request.Name.Trim(),
             Description = NormalizeOptional(request.Description),
+            Barcode = barcode,
             Price = request.Price,
             StockQuantity = request.StockQuantity,
             Category = category,
@@ -96,9 +120,21 @@ public class ProductService : IProductService
         var product = await _context.Products
             .FirstOrDefaultAsync(p => p.Id == id);
 
-        if (product == null)
+        if (product == null || product.IsDeleted)
         {
             return false;
+        }
+
+        var barcode = NormalizeBarcode(request.Barcode);
+
+        if (barcode != null &&
+            await _context.Products.AnyAsync(item =>
+                item.Id != id
+                && item.Barcode == barcode
+                && !item.IsDeleted))
+        {
+            throw new InvalidOperationException(
+                "Another active product already uses this barcode.");
         }
 
         var category = await GetOrCreateCategoryAsync(request.CategoryName);
@@ -108,6 +144,7 @@ public class ProductService : IProductService
 
         product.Name = request.Name.Trim();
         product.Description = NormalizeOptional(request.Description);
+        product.Barcode = barcode;
         product.Price = request.Price;
         product.Category = category;
         product.Supplier = supplier;
@@ -116,33 +153,26 @@ public class ProductService : IProductService
         return true;
     }
 
-    public async Task<bool> DeleteProductAsync(Guid id)
+    public async Task<bool> DeleteProductAsync(
+        Guid id,
+        string performedBy)
     {
         var product = await _context.Products
-            .FirstOrDefaultAsync(p => p.Id == id);
+            .FirstOrDefaultAsync(item =>
+                item.Id == id && !item.IsDeleted);
 
         if (product == null)
         {
             return false;
         }
 
-        var hasSalesHistory = await _context.Sales
-            .AsNoTracking()
-            .AnyAsync(s => s.ProductId == id);
+        product.IsDeleted = true;
+        product.DeletedAt = DateTime.UtcNow;
+        product.DeletedBy = string.IsNullOrWhiteSpace(performedBy)
+            ? "Unknown User"
+            : performedBy.Trim();
 
-        var hasStockHistory = await _context.StockAdjustments
-            .AsNoTracking()
-            .AnyAsync(adjustment => adjustment.ProductId == id);
-
-        if (hasSalesHistory || hasStockHistory)
-        {
-            throw new InvalidOperationException(
-                "Products with sales or stock movement history cannot be deleted.");
-        }
-
-        _context.Products.Remove(product);
         await _context.SaveChangesAsync(default);
-
         return true;
     }
 
@@ -162,7 +192,7 @@ public class ProductService : IProductService
         }
 
         var product = await _context.Products
-            .FirstOrDefaultAsync(p => p.Id == id);
+            .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
 
         if (product == null)
         {
@@ -176,6 +206,14 @@ public class ProductService : IProductService
         {
             throw new InvalidOperationException(
                 "Stock adjustment cannot reduce quantity below zero.");
+        }
+
+        var reservedQuantity = await GetReservedQuantityAsync(product.Id);
+
+        if (newQuantity < reservedQuantity)
+        {
+            throw new InvalidOperationException(
+                $"Stock cannot be reduced below the {reservedQuantity} unit(s) reserved by accepted quotes.");
         }
 
         product.StockQuantity = newQuantity;
@@ -206,59 +244,288 @@ public class ProductService : IProductService
             .OrderByDescending(s => s.SaleDate)
             .Select(s => new SaleDto(
                 s.Id,
+                s.ReceiptNumber,
                 s.Product != null ? s.Product.Name : "Unknown Product",
                 s.Quantity,
                 s.TotalPrice,
-                s.SaleDate
+                s.SaleDate,
+                s.SalespersonId,
+                s.SalespersonName
             ))
             .ToListAsync();
     }
 
-    public async Task<bool> RecordSaleAsync(CreateSaleRequest request)
+    public async Task<SaleReceiptDto?> RecordSaleAsync(
+        CreateSaleRequest request,
+        string salespersonFallback)
     {
         if (request.Quantity <= 0)
         {
-            return false;
+            return null;
         }
 
-        var product = await _context.Products.FindAsync(request.ProductId);
-
-        if (product == null || product.StockQuantity < request.Quantity)
+        if (request.ClientOperationId.HasValue)
         {
-            return false;
+            var existingSale = await _context.Sales
+                .AsNoTracking()
+                .Include(sale => sale.Product)
+                .Include(sale => sale.Customer)
+                .FirstOrDefaultAsync(sale =>
+                    sale.ClientOperationId
+                        == request.ClientOperationId.Value);
+
+            if (existingSale != null)
+            {
+                var existingUnitPrice = existingSale.Quantity > 0
+                    ? existingSale.TotalPrice / existingSale.Quantity
+                    : 0m;
+
+                return new SaleReceiptDto(
+                    existingSale.Id,
+                    existingSale.ReceiptNumber
+                        ?? "Existing Receipt",
+                    existingSale.Product?.Name
+                        ?? "Unknown Product",
+                    existingSale.Quantity,
+                    existingUnitPrice,
+                    existingSale.TotalPrice,
+                    existingSale.SaleDate,
+                    existingSale.SalespersonId,
+                    existingSale.SalespersonName,
+                    existingSale.Customer == null
+                        ? null
+                        : ToCustomerDto(existingSale.Customer)
+                );
+            }
         }
+
+        var product = await _context.Products
+            .FirstOrDefaultAsync(item =>
+                item.Id == request.ProductId && !item.IsDeleted);
+
+        if (product == null)
+        {
+            return null;
+        }
+
+        DateTime saleDate;
+        string? deviceId = null;
+
+        if (request.WasQueuedOffline)
+        {
+            if (!request.ClientOperationId.HasValue)
+            {
+                throw new InvalidOperationException(
+                    "Offline sale is missing its operation ID.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.DeviceId))
+            {
+                throw new InvalidOperationException(
+                    "Offline sale is missing its device ID.");
+            }
+
+            if (!request.ClientCreatedAt.HasValue)
+            {
+                throw new InvalidOperationException(
+                    "Offline sale is missing its original transaction time.");
+            }
+
+            if (!request.OfflineUnitPrice.HasValue
+                || request.OfflineUnitPrice.Value <= 0)
+            {
+                throw new InvalidOperationException(
+                    "Offline sale is missing its cached unit price.");
+            }
+
+            if (!request.OfflineExpectedTotal.HasValue
+                || request.OfflineExpectedTotal.Value <= 0)
+            {
+                throw new InvalidOperationException(
+                    "Offline sale is missing its expected total.");
+            }
+
+            saleDate = request.ClientCreatedAt.Value.Kind == DateTimeKind.Utc
+                ? request.ClientCreatedAt.Value
+                : request.ClientCreatedAt.Value.ToUniversalTime();
+
+            var now = DateTime.UtcNow;
+
+            if (saleDate > now.AddMinutes(5))
+            {
+                throw new InvalidOperationException(
+                    "Offline sale timestamp is in the future. Check the device clock.");
+            }
+
+            if (saleDate < now.AddDays(-7))
+            {
+                throw new InvalidOperationException(
+                    "Offline sale is older than seven days and requires manual reconciliation.");
+            }
+
+            var cachedPrice = decimal.Round(
+                request.OfflineUnitPrice.Value,
+                2,
+                MidpointRounding.AwayFromZero);
+
+            var currentPrice = decimal.Round(
+                product.Price,
+                2,
+                MidpointRounding.AwayFromZero);
+
+            if (cachedPrice != currentPrice)
+            {
+                throw new InvalidOperationException(
+                    $"Offline price conflict for {product.Name}. " +
+                    $"Cached price was {cachedPrice:0.00}; current price is {currentPrice:0.00}.");
+            }
+
+            deviceId = request.DeviceId.Trim();
+
+            if (deviceId.Length > 100)
+            {
+                deviceId = deviceId[..100];
+            }
+        }
+        else
+        {
+            saleDate = DateTime.UtcNow;
+            deviceId = string.IsNullOrWhiteSpace(request.DeviceId)
+                ? null
+                : request.DeviceId.Trim();
+        }
+
+        var reservedQuantity = await GetReservedQuantityAsync(product.Id);
+        var availableQuantity = Math.Max(
+            0,
+            product.StockQuantity - reservedQuantity);
+
+        if (request.Quantity > availableQuantity)
+        {
+            throw new InvalidOperationException(
+                $"Only {availableQuantity} unreserved unit(s) of {product.Name} are available.");
+        }
+
+        var customer = await ResolveSaleCustomerAsync(request);
+        var business = await _businessProfileService.GetAsync();
+        var salesperson = await ResolveSalespersonAsync(
+            request.SalespersonId,
+            salespersonFallback);
 
         product.StockQuantity -= request.Quantity;
+
+        var subtotal = product.Price * request.Quantity;
+        var vatAmount = business.IsVatRegistered
+            ? decimal.Round(
+                subtotal * business.DefaultVatRate / 100m,
+                2,
+                MidpointRounding.AwayFromZero)
+            : 0m;
+        var totalPrice = subtotal + vatAmount;
+
+        if (request.WasQueuedOffline)
+        {
+            var expectedTotal = decimal.Round(
+                request.OfflineExpectedTotal!.Value,
+                2,
+                MidpointRounding.AwayFromZero);
+
+            var currentTotal = decimal.Round(
+                totalPrice,
+                2,
+                MidpointRounding.AwayFromZero);
+
+            if (expectedTotal != currentTotal)
+            {
+                throw new InvalidOperationException(
+                    $"Offline total conflict for {product.Name}. " +
+                    $"Customer transaction total was {expectedTotal:0.00}; " +
+                    $"current server total is {currentTotal:0.00}.");
+            }
+        }
 
         var sale = new Sale
         {
             Id = Guid.NewGuid(),
             ProductId = product.Id,
+            Product = product,
+            Customer = customer,
+            ReceiptNumber = GenerateReceiptNumber(),
+            SalespersonId = salesperson.Staff?.Id,
+            Salesperson = salesperson.Staff,
+            SalespersonName = salesperson.Name,
+            ClientOperationId = request.ClientOperationId,
+            DeviceId = deviceId,
+            ClientCreatedAt = request.ClientCreatedAt,
+            WasQueuedOffline = request.WasQueuedOffline,
             Quantity = request.Quantity,
-            SaleDate = DateTime.UtcNow,
-            TotalPrice = product.Price * request.Quantity
+            SaleDate = saleDate,
+            TotalPrice = totalPrice
         };
 
         _context.Sales.Add(sale);
         await _context.SaveChangesAsync(default);
 
-        return true;
+        return new SaleReceiptDto(
+            sale.Id,
+            sale.ReceiptNumber,
+            product.Name,
+            sale.Quantity,
+            product.Price,
+            sale.TotalPrice,
+            sale.SaleDate,
+            sale.SalespersonId,
+            sale.SalespersonName,
+            customer == null
+                ? null
+                : ToCustomerDto(customer)
+        );
     }
 
     public async Task<DashboardDto> GetDashboardStatsAsync()
     {
         var totalProducts = await _context.Products
             .AsNoTracking()
+            .Where(product => !product.IsDeleted)
             .CountAsync();
 
         var totalInventoryValue = await _context.Products
             .AsNoTracking()
+            .Where(product => !product.IsDeleted)
             .Select(product => (decimal?)(product.Price * product.StockQuantity))
             .SumAsync() ?? 0m;
 
-        var lowStockAlerts = await _context.Products
+        var dashboardProducts = await _context.Products
             .AsNoTracking()
-            .CountAsync(product => product.StockQuantity < LowStockThreshold);
+            .Where(product => !product.IsDeleted)
+            .Select(product => new
+            {
+                product.Id,
+                product.SupplierId,
+                product.StockQuantity
+            })
+            .ToListAsync();
+
+        var dashboardMetrics = await GetProductMetricsAsync(
+            dashboardProducts.Select(product => product.Id));
+
+        var lowStockProducts = dashboardProducts
+            .Where(product =>
+            {
+                var reserved = dashboardMetrics
+                    .GetValueOrDefault(
+                        product.Id,
+                        ProductMetrics.Empty)
+                    .ReservedQuantity;
+
+                return Math.Max(
+                    0,
+                    product.StockQuantity - reserved)
+                    < LowStockThreshold;
+            })
+            .ToList();
+
+        var lowStockAlerts = lowStockProducts.Count;
 
         var totalSalesRevenue = await _context.Sales
             .AsNoTracking()
@@ -273,6 +540,46 @@ public class ProductService : IProductService
         var totalSuppliers = await _context.Suppliers
             .AsNoTracking()
             .CountAsync();
+
+        var totalCustomers = await _context.Customers
+            .AsNoTracking()
+            .CountAsync();
+
+        var today = DateTime.UtcNow.Date;
+
+        var activeQuotes = await _context.Quotes
+            .AsNoTracking()
+            .Where(quote =>
+                quote.Status == QuoteStatus.Accepted
+                || ((quote.Status == QuoteStatus.Draft
+                    || quote.Status == QuoteStatus.Sent)
+                    && quote.ValidUntil >= today))
+            .Include(quote => quote.Payments)
+            .ToListAsync();
+
+        var activeQuoteCount = activeQuotes.Count;
+        var quotePipelineValue = activeQuotes.Sum(quote => quote.Total);
+
+        var receivableQuotes = await _context.Quotes
+            .AsNoTracking()
+            .Where(quote =>
+                quote.Status == QuoteStatus.Accepted
+                || quote.Status == QuoteStatus.Converted)
+            .Include(quote => quote.Payments)
+            .ToListAsync();
+
+        var outstandingQuoteBalance = receivableQuotes.Sum(quote =>
+            Math.Max(
+                0m,
+                quote.Total - quote.Payments.Sum(payment => payment.Amount)));
+
+        var reservedUnits = await _context.QuoteItems
+            .AsNoTracking()
+            .Where(item =>
+                item.Quote != null
+                && item.Quote.Status == QuoteStatus.Accepted)
+            .Select(item => (int?)item.Quantity)
+            .SumAsync() ?? 0;
 
         var topSellingProducts = await _context.Sales
             .AsNoTracking()
@@ -306,12 +613,15 @@ public class ProductService : IProductService
             .Take(5)
             .Select(sale => new SaleDto(
                 sale.Id,
+                sale.ReceiptNumber,
                 sale.Product != null
                     ? sale.Product.Name
                     : "Unknown Product",
                 sale.Quantity,
                 sale.TotalPrice,
-                sale.SaleDate
+                sale.SaleDate,
+                sale.SalespersonId,
+                sale.SalespersonName
             ))
             .ToListAsync();
 
@@ -335,27 +645,28 @@ public class ProductService : IProductService
             ))
             .ToListAsync();
 
-        var lowStockSupplierAlerts = await _context.Products
-            .AsNoTracking()
-            .Where(product => product.StockQuantity < LowStockThreshold)
+        var supplierLowStockCounts = lowStockProducts
             .GroupBy(product => product.SupplierId)
-            .Select(group => new
-            {
-                SupplierId = group.Key,
-                LowStockProductCount = group.Count()
-            })
-            .OrderByDescending(item => item.LowStockProductCount)
-            .Join(
-                _context.Suppliers.AsNoTracking(),
-                alert => alert.SupplierId,
-                supplier => supplier.Id,
-                (alert, supplier) => new LowStockSupplierAlertDto(
-                    supplier.Id,
-                    supplier.CompanyName,
-                    supplier.ContactEmail,
-                    alert.LowStockProductCount
-                ))
+            .ToDictionary(
+                group => group.Key,
+                group => group.Count());
+
+        var supplierIds = supplierLowStockCounts.Keys.ToList();
+
+        var supplierLowStockDetails = await _context.Suppliers
+            .AsNoTracking()
+            .Where(supplier => supplierIds.Contains(supplier.Id))
             .ToListAsync();
+
+        var lowStockSupplierAlerts = supplierLowStockDetails
+            .Select(supplier => new LowStockSupplierAlertDto(
+                supplier.Id,
+                supplier.CompanyName,
+                supplier.ContactEmail,
+                supplierLowStockCounts.GetValueOrDefault(supplier.Id)
+            ))
+            .OrderByDescending(alert => alert.LowStockProductCount)
+            .ToList();
 
         return new DashboardDto(
             TotalProducts: totalProducts,
@@ -364,6 +675,11 @@ public class ProductService : IProductService
             TotalSalesRevenue: totalSalesRevenue,
             TotalUnitsSold: totalUnitsSold,
             TotalSuppliers: totalSuppliers,
+            TotalCustomers: totalCustomers,
+            ActiveQuotes: activeQuoteCount,
+            QuotePipelineValue: quotePipelineValue,
+            OutstandingQuoteBalance: outstandingQuoteBalance,
+            ReservedUnits: reservedUnits,
             TopSellingProducts: topSellingProducts,
             RecentSales: recentSales,
             RecentStockMovements: recentStockMovements,
@@ -373,35 +689,10 @@ public class ProductService : IProductService
         );
     }
 
-    public async Task<int> SyncWithSmartTradeAsync()
+    public Task<int> SyncWithSmartTradeAsync()
     {
-        var externalProducts = await _externalStockService.SyncFromExternalAsync();
-        var updateCount = 0;
-
-        foreach (var externalProduct in externalProducts)
-        {
-            if (string.IsNullOrWhiteSpace(externalProduct.ExternalId))
-            {
-                continue;
-            }
-
-            var localProduct = await _context.Products
-                .FirstOrDefaultAsync(p => p.ExternalId == externalProduct.ExternalId);
-
-            if (localProduct != null
-                && localProduct.StockQuantity != externalProduct.StockQuantity)
-            {
-                localProduct.StockQuantity = externalProduct.StockQuantity;
-                updateCount++;
-            }
-        }
-
-        if (updateCount > 0)
-        {
-            await _context.SaveChangesAsync(default);
-        }
-
-        return updateCount;
+        throw new InvalidOperationException(
+            "Direct SmartTrade quantity overwrite is disabled. Create a SmartTrade-backed stocktake snapshot and reconcile physical counts instead.");
     }
 
     public async Task<byte[]> GenerateStockReportAsync()
@@ -410,17 +701,22 @@ public class ProductService : IProductService
         var builder = new System.Text.StringBuilder();
 
         builder.AppendLine(
-            "Product Name,Description,Category,Supplier,Price,Stock Quantity,Low Stock Alert");
+            "Product Name,Barcode,Description,Category,Supplier,Price,On Hand,Under Quote,Reserved,Available,Sold,Low Stock Alert");
 
         foreach (var product in products)
         {
             builder.AppendLine(
                 $"{EscapeCsv(product.Name)}," +
+                $"{EscapeCsv(product.Barcode ?? string.Empty)}," +
                 $"{EscapeCsv(product.Description ?? string.Empty)}," +
                 $"{EscapeCsv(product.CategoryName)}," +
                 $"{EscapeCsv(product.SupplierName)}," +
                 $"{product.Price}," +
                 $"{product.StockQuantity}," +
+                $"{product.QuotedQuantity}," +
+                $"{product.ReservedQuantity}," +
+                $"{product.AvailableQuantity}," +
+                $"{product.SoldQuantity}," +
                 $"{product.IsLowStock}");
         }
 
@@ -480,20 +776,227 @@ public class ProductService : IProductService
         return supplier;
     }
 
-    private static ProductDto ToDto(Product product)
+    private static ProductDto ToDto(
+        Product product,
+        ProductMetrics metrics)
     {
+        var availableQuantity = Math.Max(
+            0,
+            product.StockQuantity - metrics.ReservedQuantity);
+
         return new ProductDto(
             product.Id,
             product.Name,
             product.Description,
+            product.Barcode,
             product.Price,
             product.StockQuantity,
             product.Category?.Name ?? "N/A",
-            product.StockQuantity < LowStockThreshold,
+            availableQuantity < LowStockThreshold,
             product.Supplier?.CompanyName ?? "N/A",
             product.Supplier?.ContactEmail,
-            product.ExternalId
+            product.ExternalId,
+            metrics.QuotedQuantity,
+            metrics.ReservedQuantity,
+            availableQuantity,
+            metrics.SoldQuantity
         );
+    }
+
+    private async Task<Dictionary<Guid, ProductMetrics>>
+        GetProductMetricsAsync(IEnumerable<Guid> productIds)
+    {
+        var ids = productIds.Distinct().ToList();
+
+        if (ids.Count == 0)
+        {
+            return new Dictionary<Guid, ProductMetrics>();
+        }
+
+        var today = DateTime.UtcNow.Date;
+
+        var quoted = await _context.QuoteItems
+            .AsNoTracking()
+            .Where(item =>
+                ids.Contains(item.ProductId)
+                && item.Quote != null
+                && (item.Quote.Status == QuoteStatus.Sent
+                    || item.Quote.Status == QuoteStatus.Accepted)
+                && (item.Quote.Status == QuoteStatus.Accepted
+                    || item.Quote.ValidUntil >= today))
+            .GroupBy(item => item.ProductId)
+            .Select(group => new
+            {
+                ProductId = group.Key,
+                Quantity = group.Sum(item => item.Quantity)
+            })
+            .ToDictionaryAsync(
+                item => item.ProductId,
+                item => item.Quantity);
+
+        var reserved = await _context.QuoteItems
+            .AsNoTracking()
+            .Where(item =>
+                ids.Contains(item.ProductId)
+                && item.Quote != null
+                && item.Quote.Status == QuoteStatus.Accepted)
+            .GroupBy(item => item.ProductId)
+            .Select(group => new
+            {
+                ProductId = group.Key,
+                Quantity = group.Sum(item => item.Quantity)
+            })
+            .ToDictionaryAsync(
+                item => item.ProductId,
+                item => item.Quantity);
+
+        var sold = await _context.Sales
+            .AsNoTracking()
+            .Where(sale => ids.Contains(sale.ProductId))
+            .GroupBy(sale => sale.ProductId)
+            .Select(group => new
+            {
+                ProductId = group.Key,
+                Quantity = group.Sum(sale => sale.Quantity)
+            })
+            .ToDictionaryAsync(
+                item => item.ProductId,
+                item => item.Quantity);
+
+        return ids.ToDictionary(
+            id => id,
+            id => new ProductMetrics(
+                quoted.GetValueOrDefault(id),
+                reserved.GetValueOrDefault(id),
+                sold.GetValueOrDefault(id)));
+    }
+
+    private async Task<int> GetReservedQuantityAsync(Guid productId)
+    {
+        return await _context.QuoteItems
+            .AsNoTracking()
+            .Where(item =>
+                item.ProductId == productId
+                && item.Quote != null
+                && item.Quote.Status == QuoteStatus.Accepted)
+            .Select(item => (int?)item.Quantity)
+            .SumAsync() ?? 0;
+    }
+
+    private async Task<(StaffMember? Staff, string Name)> ResolveSalespersonAsync(
+        Guid? salespersonId,
+        string fallback)
+    {
+        if (salespersonId.HasValue)
+        {
+            var staff = await _context.StaffMembers
+                .FirstOrDefaultAsync(item =>
+                    item.Id == salespersonId.Value
+                    && item.IsActive);
+
+            if (staff == null)
+            {
+                throw new InvalidOperationException(
+                    "Selected salesperson is unavailable or inactive.");
+            }
+
+            return (staff, staff.FullName);
+        }
+
+        return (
+            null,
+            string.IsNullOrWhiteSpace(fallback)
+                ? "Unknown Salesperson"
+                : fallback.Trim());
+    }
+
+    private async Task<Customer?> ResolveSaleCustomerAsync(
+        CreateSaleRequest request)
+    {
+        var name = NormalizeOptional(request.CustomerName);
+        var email = NormalizeOptional(request.CustomerEmail);
+        var phone = NormalizeOptional(request.CustomerPhoneNumber);
+        var whatsApp = NormalizeOptional(request.CustomerWhatsAppNumber);
+
+        if (name == null
+            && email == null
+            && phone == null
+            && whatsApp == null)
+        {
+            return null;
+        }
+
+        Customer? customer = null;
+
+        if (email != null)
+        {
+            customer = await _context.Customers
+                .FirstOrDefaultAsync(item => item.Email == email);
+        }
+
+        if (customer == null && phone != null)
+        {
+            customer = await _context.Customers
+                .FirstOrDefaultAsync(item => item.PhoneNumber == phone);
+        }
+
+        if (customer == null)
+        {
+            customer = new Customer
+            {
+                Id = Guid.NewGuid(),
+                FullName = name
+                    ?? email
+                    ?? phone
+                    ?? "Walk-in Customer",
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.Customers.Add(customer);
+        }
+
+        if (name != null)
+        {
+            customer.FullName = name;
+        }
+
+        customer.CompanyName = NormalizeOptional(
+            request.CustomerCompanyName);
+        customer.Email = email;
+        customer.PhoneNumber = phone;
+        customer.WhatsAppNumber = whatsApp;
+        customer.HasWhatsApp = request.CustomerHasWhatsApp;
+        customer.Address = NormalizeOptional(request.CustomerAddress);
+
+        return customer;
+    }
+
+    private static CustomerDto ToCustomerDto(Customer customer)
+    {
+        return new CustomerDto(
+            customer.Id,
+            customer.FullName,
+            customer.CompanyName,
+            customer.Email,
+            customer.PhoneNumber,
+            customer.WhatsAppNumber,
+            customer.HasWhatsApp,
+            customer.Address
+        );
+    }
+
+    private static string GenerateReceiptNumber()
+    {
+        return $"RCPT-{DateTime.UtcNow:yyyyMMdd}-" +
+               Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
+    }
+
+    private sealed record ProductMetrics(
+        int QuotedQuantity,
+        int ReservedQuantity,
+        int SoldQuantity)
+    {
+        public static ProductMetrics Empty { get; } = new(0, 0, 0);
     }
 
     private static void ValidateProductDetails(
@@ -527,6 +1030,24 @@ public class ProductService : IProductService
         {
             throw new ArgumentException("Supplier is required.");
         }
+    }
+
+    private static string? NormalizeBarcode(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var barcode = new string(value.Where(char.IsDigit).ToArray());
+
+        if (barcode.Length < 8 || barcode.Length > 14)
+        {
+            throw new ArgumentException(
+                "Barcode must contain between 8 and 14 digits.");
+        }
+
+        return barcode;
     }
 
     private static string? NormalizeOptional(string? value)

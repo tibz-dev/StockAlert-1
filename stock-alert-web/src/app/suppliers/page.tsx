@@ -6,6 +6,7 @@ import {
   Loader2,
   Mail,
   Package,
+  Eye,
   Pencil,
   Plus,
   Search,
@@ -14,7 +15,7 @@ import {
 } from 'lucide-react';
 import api from '@/lib/api';
 import SupplierFormModal from '@/components/suppliers/SupplierFormModal';
-import type { Supplier } from '@/types/supplier';
+import type { Supplier, SupplierProduct } from '@/types/supplier';
 
 export default function SuppliersPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -27,6 +28,7 @@ export default function SuppliersPage() {
     supplier?: Supplier;
   } | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [viewingSupplier, setViewingSupplier] = useState<Supplier | null>(null);
 
   const loadSuppliers = useCallback(async () => {
     try {
@@ -54,7 +56,10 @@ export default function SuppliersPage() {
     return suppliers.filter(
       (supplier) =>
         supplier.companyName.toLowerCase().includes(query) ||
-        supplier.contactEmail?.toLowerCase().includes(query),
+        supplier.contactEmail?.toLowerCase().includes(query) ||
+        supplier.productNames.some((name) =>
+          name.toLowerCase().includes(query),
+        ),
     );
   }, [search, suppliers]);
 
@@ -169,7 +174,7 @@ export default function SuppliersPage() {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             className="w-full rounded-lg border border-gray-300 py-2.5 pl-10 pr-3 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-            placeholder="Search supplier name or email"
+            placeholder="Search supplier, email or product name"
           />
         </label>
       </div>
@@ -226,6 +231,14 @@ export default function SuppliersPage() {
                   <td className="p-4">
                     <div className="flex gap-2">
                       <button
+                        onClick={() => setViewingSupplier(supplier)}
+                        className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
+                      >
+                        <Eye size={13} />
+                        View Products
+                      </button>
+
+                      <button
                         onClick={() => setModal({ mode: 'edit', supplier })}
                         className="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 transition hover:bg-gray-50"
                       >
@@ -262,6 +275,13 @@ export default function SuppliersPage() {
         </div>
       </div>
 
+      {viewingSupplier && (
+        <SupplierProductsModal
+          supplier={viewingSupplier}
+          onClose={() => setViewingSupplier(null)}
+        />
+      )}
+
       {modal && (
         <SupplierFormModal
           mode={modal.mode}
@@ -276,6 +296,139 @@ export default function SuppliersPage() {
           }
         />
       )}
+    </div>
+  );
+}
+
+function SupplierProductsModal({
+  supplier,
+  onClose,
+}: {
+  supplier: Supplier;
+  onClose: () => void;
+}) {
+  const [products, setProducts] = useState<SupplierProduct[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const response = await api.get<SupplierProduct[]>(
+          `/suppliers/${supplier.id}/products`,
+        );
+        setProducts(response.data);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void load();
+  }, [supplier.id]);
+
+  const filtered = useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    if (!query) return products;
+
+    return products.filter(
+      (product) =>
+        product.name.toLowerCase().includes(query) ||
+        product.barcode?.includes(query),
+    );
+  }, [products, search]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-start justify-between border-b border-gray-200 px-6 py-5">
+          <div>
+            <p className="text-sm font-medium text-blue-600">Supplier catalogue</p>
+            <h2 className="mt-1 text-xl font-bold text-gray-900">
+              {supplier.companyName}
+            </h2>
+            <p className="mt-1 text-sm text-gray-500">
+              {supplier.productCount} active product
+              {supplier.productCount === 1 ? '' : 's'} linked to this supplier.
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-lg p-2 text-gray-400 hover:bg-gray-100"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="p-6">
+          <label className="relative mb-4 block">
+            <Search
+              size={17}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+            />
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search product name or barcode"
+              className="w-full rounded-lg border border-gray-300 py-2.5 pl-10 pr-3 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            />
+          </label>
+
+          <div className="max-h-[58vh] overflow-auto rounded-lg border border-gray-200">
+            <table className="w-full min-w-[720px] text-left">
+              <thead className="sticky top-0 bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
+                <tr>
+                  <th className="p-3">Product</th>
+                  <th className="p-3">Barcode</th>
+                  <th className="p-3 text-right">Price</th>
+                  <th className="p-3 text-right">On hand</th>
+                  <th className="p-3 text-right">Reserved</th>
+                  <th className="p-3 text-right">Available</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((product) => (
+                  <tr key={product.id} className="border-t border-gray-100">
+                    <td className="p-3 font-medium text-gray-900">
+                      {product.name}
+                    </td>
+                    <td className="p-3 text-sm text-gray-500">
+                      {product.barcode ?? '—'}
+                    </td>
+                    <td className="p-3 text-right text-sm text-gray-700">
+                      {product.price.toFixed(2)}
+                    </td>
+                    <td className="p-3 text-right text-sm text-gray-700">
+                      {product.onHand}
+                    </td>
+                    <td className="p-3 text-right text-sm text-violet-700">
+                      {product.reserved}
+                    </td>
+                    <td className="p-3 text-right text-sm font-semibold text-gray-900">
+                      {product.available}
+                    </td>
+                  </tr>
+                ))}
+
+                {!loading && filtered.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="p-10 text-center text-sm text-gray-500">
+                      No products match this search.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+
+            {loading && (
+              <div className="flex items-center justify-center p-10 text-sm text-gray-500">
+                <Loader2 className="mr-2 animate-spin" size={17} />
+                Loading supplier products...
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

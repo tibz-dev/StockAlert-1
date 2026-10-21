@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using StockAlert.Application.DTOs;
 using StockAlert.Application.Interfaces;
 using StockAlert.Domain.Entities;
+using StockAlert.Domain.Enums;
 
 namespace StockAlert.Infrastructure.Services;
 
@@ -18,38 +19,121 @@ public class SupplierService : ISupplierService
 
     public async Task<IReadOnlyList<SupplierDto>> GetAllAsync()
     {
-        return await _context.Suppliers
+        var suppliers = await _context.Suppliers
             .AsNoTracking()
             .OrderBy(supplier => supplier.CompanyName)
-            .Select(supplier => new SupplierDto(
-                supplier.Id,
-                supplier.CompanyName,
-                supplier.ContactEmail,
-                _context.Products.Count(product =>
-                    product.SupplierId == supplier.Id),
-                _context.Products.Count(product =>
-                    product.SupplierId == supplier.Id
-                    && product.StockQuantity < LowStockThreshold)
-            ))
             .ToListAsync();
+
+        var products = await _context.Products
+            .AsNoTracking()
+            .Where(product => !product.IsDeleted)
+            .Select(product => new
+            {
+                product.Id,
+                product.SupplierId,
+                product.Name,
+                product.StockQuantity
+            })
+            .ToListAsync();
+
+        var reserved = await _context.QuoteItems
+            .AsNoTracking()
+            .Where(item =>
+                item.Quote != null
+                && item.Quote.Status == QuoteStatus.Accepted)
+            .GroupBy(item => item.ProductId)
+            .Select(group => new
+            {
+                ProductId = group.Key,
+                Quantity = group.Sum(item => item.Quantity)
+            })
+            .ToDictionaryAsync(
+                item => item.ProductId,
+                item => item.Quantity);
+
+        return suppliers
+            .Select(supplier =>
+            {
+                var supplierProducts = products
+                    .Where(product =>
+                        product.SupplierId == supplier.Id)
+                    .ToList();
+
+                var lowStockCount = supplierProducts.Count(product =>
+                    Math.Max(
+                        0,
+                        product.StockQuantity
+                        - reserved.GetValueOrDefault(product.Id))
+                    < LowStockThreshold);
+
+                return new SupplierDto(
+                    supplier.Id,
+                    supplier.CompanyName,
+                    supplier.ContactEmail,
+                    supplierProducts.Count,
+                    lowStockCount,
+                    supplierProducts
+                        .Select(product => product.Name)
+                        .OrderBy(name => name)
+                        .ToList()
+                );
+            })
+            .ToList();
     }
 
     public async Task<SupplierDto?> GetByIdAsync(Guid id)
     {
-        return await _context.Suppliers
+        var suppliers = await GetAllAsync();
+        return suppliers.FirstOrDefault(supplier => supplier.Id == id);
+    }
+
+    public async Task<IReadOnlyList<SupplierProductDto>> GetProductsAsync(
+        Guid id)
+    {
+        var products = await _context.Products
             .AsNoTracking()
-            .Where(supplier => supplier.Id == id)
-            .Select(supplier => new SupplierDto(
-                supplier.Id,
-                supplier.CompanyName,
-                supplier.ContactEmail,
-                _context.Products.Count(product =>
-                    product.SupplierId == supplier.Id),
-                _context.Products.Count(product =>
-                    product.SupplierId == supplier.Id
-                    && product.StockQuantity < LowStockThreshold)
-            ))
-            .FirstOrDefaultAsync();
+            .Where(product =>
+                product.SupplierId == id
+                && !product.IsDeleted)
+            .OrderBy(product => product.Name)
+            .ToListAsync();
+
+        var productIds = products.Select(product => product.Id).ToList();
+
+        var reserved = await _context.QuoteItems
+            .AsNoTracking()
+            .Where(item =>
+                productIds.Contains(item.ProductId)
+                && item.Quote != null
+                && item.Quote.Status == QuoteStatus.Accepted)
+            .GroupBy(item => item.ProductId)
+            .Select(group => new
+            {
+                ProductId = group.Key,
+                Quantity = group.Sum(item => item.Quantity)
+            })
+            .ToDictionaryAsync(
+                item => item.ProductId,
+                item => item.Quantity);
+
+        return products.Select(product =>
+        {
+            var reservedQuantity = reserved.GetValueOrDefault(product.Id);
+            var available = Math.Max(
+                0,
+                product.StockQuantity - reservedQuantity);
+
+            return new SupplierProductDto(
+                product.Id,
+                product.Name,
+                product.Barcode,
+                product.Price,
+                product.StockQuantity,
+                reservedQuantity,
+                available,
+                available < LowStockThreshold
+            );
+        }).ToList();
     }
 
     public async Task<Guid> CreateAsync(CreateSupplierRequest request)

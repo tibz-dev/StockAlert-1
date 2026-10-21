@@ -1,0 +1,31 @@
+export interface BusinessProfile {
+  id: string;
+  businessName: string;
+  tradingName: string | null;
+  registrationNumber: string | null;
+  vatNumber: string | null;
+  isVatRegistered: boolean;
+  defaultVatRate: number;
+  email: string | null;
+  phoneNumber: string | null;
+  whatsAppNumber: string | null;
+  website: string | null;
+  logoUrl: string | null;
+  addressLine1: string | null;
+  addressLine2: string | null;
+  city: string | null;
+  province: string | null;
+  postalCode: string | null;
+  country: string;
+  branchName: string | null;
+  branchNumber: string | null;
+  bankName: string | null;
+  bankAccountName: string | null;
+  bankAccountNumber: string | null;
+  bankBranchCode: string | null;
+  bankAccountType: string | null;
+  currencyCode: string;
+  quoteValidityDays: number;
+  receiptFooter: string | null;
+  updatedAt: string;
+}

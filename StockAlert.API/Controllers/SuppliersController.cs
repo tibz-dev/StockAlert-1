@@ -33,6 +33,12 @@ public class SuppliersController : ControllerBase
             : Ok(supplier);
     }
 
+    [HttpGet("{id:guid}/products")]
+    public async Task<IActionResult> GetProducts(Guid id)
+    {
+        return Ok(await _supplierService.GetProductsAsync(id));
+    }
+
     [HttpPost]
     public async Task<IActionResult> Create(CreateSupplierRequest request)
     {

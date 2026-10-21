@@ -4,15 +4,16 @@ using StockAlert.Application.DTOs;
 
 namespace StockAlert.Infrastructure.Services;
 
-public class SmartTradeAdapter : IExternalStockService
+public class SmartTradeAdapter : IExternalStockService, IStockSourceAdapter
 {
     private readonly HttpClient _httpClient;
 
     public SmartTradeAdapter(HttpClient httpClient)
     {
         _httpClient = httpClient;
-        // You would set the BaseAddress to SmartTrade's API URL
     }
+
+    public string SourceName => "SmartTrade";
 
     public async Task<IEnumerable<ProductDto>> SyncFromExternalAsync()
     {
@@ -21,6 +22,22 @@ public class SmartTradeAdapter : IExternalStockService
 
         // For now, return an empty list to satisfy the interface while we fix the build
         return Enumerable.Empty<ProductDto>();
+    }
+
+    public async Task<IReadOnlyList<StockSourceItemDto>> GetSnapshotAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var products = await SyncFromExternalAsync();
+
+        return products
+            .Select(product => new StockSourceItemDto(
+                product.ExternalId,
+                product.Name,
+                product.Barcode,
+                product.StockQuantity,
+                product.Price
+            ))
+            .ToList();
     }
 
     public async Task<bool> PushSaleToExternalAsync(SaleDto sale)

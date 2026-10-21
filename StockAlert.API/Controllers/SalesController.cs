@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using StockAlert.Application.DTOs;
@@ -11,10 +12,14 @@ namespace StockAlert.API.Controllers;
 public class SalesController : ControllerBase
 {
     private readonly IProductService _productService;
+    private readonly IDocumentDeliveryService _deliveryService;
 
-    public SalesController(IProductService productService)
+    public SalesController(
+        IProductService productService,
+        IDocumentDeliveryService deliveryService)
     {
         _productService = productService;
+        _deliveryService = deliveryService;
     }
 
     [HttpGet]
@@ -27,13 +32,70 @@ public class SalesController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> MakeSale(CreateSaleRequest request)
     {
-        var success = await _productService.RecordSaleAsync(request);
-
-        if (!success)
+        try
         {
-            return BadRequest("Invalid quantity, insufficient stock, or product not found.");
-        }
+            var salespersonFallback =
+                User.FindFirstValue(ClaimTypes.Name)
+                ?? User.FindFirstValue(ClaimTypes.Email)
+                ?? User.FindFirstValue(ClaimTypes.NameIdentifier)
+                ?? "Unknown User";
 
-        return Ok(new { message = "Sale recorded successfully." });
+            var effectiveRequest =
+                User.IsInRole("Owner") || User.IsInRole("Manager")
+                    ? request
+                    : request with { SalespersonId = null };
+
+            var receipt = await _productService.RecordSaleAsync(
+                effectiveRequest,
+                salespersonFallback);
+
+            if (receipt == null)
+            {
+                return BadRequest(new
+                {
+                    message = "Invalid quantity or product not found."
+                });
+            }
+
+            return Ok(receipt);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+    }
+
+    [HttpGet("{id:guid}/receipt")]
+    public async Task<IActionResult> GetReceipt(Guid id)
+    {
+        var receipt = await _deliveryService.GetReceiptAsync(id);
+
+        return receipt == null
+            ? NotFound(new { message = "Receipt not found." })
+            : Ok(receipt);
+    }
+
+    [HttpPost("{id:guid}/receipt/delivery")]
+    public async Task<IActionResult> PrepareReceiptDelivery(
+        Guid id,
+        PrepareDeliveryRequest request)
+    {
+        try
+        {
+            return Ok(
+                await _deliveryService.PrepareReceiptAsync(id, request));
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
     }
 }
