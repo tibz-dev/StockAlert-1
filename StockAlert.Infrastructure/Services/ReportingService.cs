@@ -126,17 +126,28 @@ public class ReportingService : IReportingService
                 ))
             .ToListAsync();
 
-        var salespeople = await salesQuery
+        // Keep SQL grouping, aggregation, and sorting server-side.
+        // Construct DTO records only after EF Core has materialized the results.
+        var salespersonTotals = await salesQuery
             .GroupBy(sale => sale.SalespersonName ?? "Unassigned")
-            .Select(group => new SalespersonPerformanceDto(
-                group.Key,
-                group.Count(),
-                group.Sum(sale => sale.Quantity),
-                group.Sum(sale => sale.TotalPrice)
-            ))
+            .Select(group => new
+            {
+                SalespersonName = group.Key,
+                SaleCount = group.Count(),
+                UnitsSold = group.Sum(sale => sale.Quantity),
+                Revenue = group.Sum(sale => sale.TotalPrice)
+            })
             .OrderByDescending(item => item.Revenue)
             .ThenByDescending(item => item.UnitsSold)
             .ToListAsync();
+
+        var salespeople = salespersonTotals
+            .Select(item => new SalespersonPerformanceDto(
+                item.SalespersonName,
+                item.SaleCount,
+                item.UnitsSold,
+                item.Revenue))
+            .ToList();
 
         return new ReportSummaryDto(
             FromDate: fromDate?.Date,
