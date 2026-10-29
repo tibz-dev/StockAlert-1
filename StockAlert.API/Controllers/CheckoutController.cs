@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using StockAlert.Application.DTOs;
 using StockAlert.Application.Interfaces;
+using StockAlert.Infrastructure.Services;
 
 namespace StockAlert.API.Controllers;
 
@@ -11,8 +12,33 @@ namespace StockAlert.API.Controllers;
 public sealed class CheckoutController : ControllerBase
 {
     private readonly IProductService _products;
+    private readonly CheckoutPostingService _posting;
 
-    public CheckoutController(IProductService products) => _products = products;
+    public CheckoutController(IProductService products, CheckoutPostingService posting)
+    {
+        _products = products;
+        _posting = posting;
+    }
+
+    [HttpPost("cash")]
+    public async Task<IActionResult> CommitCash(
+        [FromBody] CommitCheckoutRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var receipt = await _posting.CommitCashAsync(request, cancellationToken);
+            Response.Headers.CacheControl = "no-store";
+            return Ok(receipt);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+    }
 
     // A non-posting preview shared by Next.js and WPF. This does not reserve
     // inventory, capture a tender, create a receipt or commit a sale.
