@@ -75,7 +75,9 @@ public class ProductService : IProductService
             request.CategoryName,
             request.SupplierName);
 
-        var barcode = NormalizeBarcode(request.Barcode);
+        var barcode = string.IsNullOrWhiteSpace(request.Barcode)
+            ? InternalBarcodeGenerator.Generate()
+            : InternalBarcodeGenerator.Normalize(request.Barcode);
 
         if (barcode != null &&
             await _context.Products.AnyAsync(product =>
@@ -125,7 +127,9 @@ public class ProductService : IProductService
             return false;
         }
 
-        var barcode = NormalizeBarcode(request.Barcode);
+        var barcode = string.IsNullOrWhiteSpace(request.Barcode)
+            ? product.Barcode
+            : InternalBarcodeGenerator.Normalize(request.Barcode);
 
         if (barcode != null &&
             await _context.Products.AnyAsync(item =>
