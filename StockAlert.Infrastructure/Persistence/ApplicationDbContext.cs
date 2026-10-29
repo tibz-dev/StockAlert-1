@@ -494,6 +494,37 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
+        modelBuilder.Entity<CheckoutTransaction>(entity =>
+        {
+            entity.HasIndex(x => x.ClientOperationId).IsUnique();
+            entity.HasIndex(x => x.ReceiptNumber).IsUnique();
+            entity.Property(x => x.ReceiptNumber).HasMaxLength(64);
+            entity.Property(x => x.Status).HasMaxLength(32);
+            entity.Property(x => x.Subtotal).HasPrecision(18, 2);
+            entity.Property(x => x.VatAmount).HasPrecision(18, 2);
+            entity.Property(x => x.Total).HasPrecision(18, 2);
+            entity.HasOne(x => x.Customer).WithMany()
+                .HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.SetNull);
+        });
+        modelBuilder.Entity<CheckoutLine>(entity =>
+        {
+            entity.Property(x => x.UnitPrice).HasPrecision(18, 2);
+            entity.Property(x => x.LineTotal).HasPrecision(18, 2);
+            entity.HasOne(x => x.CheckoutTransaction).WithMany(x => x.Lines)
+                .HasForeignKey(x => x.CheckoutTransactionId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Product).WithMany()
+                .HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(x => new { x.CheckoutTransactionId, x.ProductId }).IsUnique();
+        });
+        modelBuilder.Entity<CheckoutTender>(entity =>
+        {
+            entity.Property(x => x.Amount).HasPrecision(18, 2);
+            entity.Property(x => x.Method).HasMaxLength(40);
+            entity.Property(x => x.Status).HasMaxLength(32);
+            entity.Property(x => x.ExternalReference).HasMaxLength(150);
+            entity.HasOne(x => x.CheckoutTransaction).WithMany(x => x.Tenders)
+                .HasForeignKey(x => x.CheckoutTransactionId).OnDelete(DeleteBehavior.Cascade);
+        });
         base.OnModelCreating(modelBuilder);
     }
 }
