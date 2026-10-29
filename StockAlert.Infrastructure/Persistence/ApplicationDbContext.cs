@@ -27,6 +27,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
     public DbSet<CheckoutTransaction> CheckoutTransactions => Set<CheckoutTransaction>();
     public DbSet<CheckoutLine> CheckoutLines => Set<CheckoutLine>();
     public DbSet<CheckoutTender> CheckoutTenders => Set<CheckoutTender>();
+    public DbSet<StaffBadge> StaffBadges => Set<StaffBadge>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<StockAdjustment> StockAdjustments => Set<StockAdjustment>();
     public DbSet<BusinessProfile> BusinessProfiles => Set<BusinessProfile>();
