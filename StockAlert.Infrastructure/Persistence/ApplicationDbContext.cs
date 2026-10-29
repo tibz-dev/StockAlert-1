@@ -526,6 +526,13 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
             entity.HasOne(x => x.CheckoutTransaction).WithMany(x => x.Tenders)
                 .HasForeignKey(x => x.CheckoutTransactionId).OnDelete(DeleteBehavior.Cascade);
         });
+        modelBuilder.Entity<StaffBadge>(entity =>
+        {
+            entity.Property(x => x.BadgeHash).HasMaxLength(64).IsRequired();
+            entity.HasIndex(x => x.BadgeHash).IsUnique();
+            entity.HasOne(x => x.User).WithMany()
+                .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
         base.OnModelCreating(modelBuilder);
     }
 }
