@@ -66,9 +66,9 @@
                         </Border>
                         <TextBlock Style="{StaticResource SidebarText}" Text="Stock Movements"/>
                         <TextBlock Style="{StaticResource SidebarText}" Text="Stocktakes"/>
-                        <TextBlock Style="{StaticResource SidebarText}" Text="Suppliers"/>
+                        <Button Content="Suppliers" Click="Suppliers_Click" Background="Transparent" Foreground="#94A3B8" HorizontalContentAlignment="Left" Margin="0,1" Padding="18,12"/>
                         <TextBlock Style="{StaticResource SidebarText}" Text="Quotes"/>
-                        <TextBlock Style="{StaticResource SidebarText}" Text="Customers"/>
+                        <Button Content="Customers" Click="Customers_Click" Background="Transparent" Foreground="#94A3B8" HorizontalContentAlignment="Left" Margin="0,1" Padding="18,12"/>
                         <TextBlock Style="{StaticResource SidebarText}" Text="Staff"/>
                         <TextBlock Style="{StaticResource SidebarText}" Text="Sales"/>
                         <TextBlock Style="{StaticResource SidebarText}" Text="Reports"/>
@@ -163,6 +163,43 @@
                 </UniformGrid>
                 <TextBlock Text="For revenue and accounting figures, use the dedicated reporting API; product selling prices are not inventory cost values." Foreground="#64748B" TextWrapping="Wrap" Margin="0,10"/>
                 <Button Content="Open Inventory" Width="160" HorizontalAlignment="Left" Click="Inventory_Click" Margin="0,20,0,0"/>
+            </StackPanel>
+        </ScrollViewer>
+        <ScrollViewer x:Name="SuppliersPage" Grid.Column="1" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="32">
+                <TextBlock Text="Supplier management" Foreground="#2563EB" FontWeight="SemiBold"/>
+                <TextBlock Text="Suppliers" FontSize="28" FontWeight="Bold" Foreground="#111827" Margin="0,6,0,20"/>
+                <Button Content="Refresh Suppliers" HorizontalAlignment="Left" Click="Suppliers_Click" Margin="0,0,0,16"/>
+                <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10" Padding="8">
+                    <DataGrid x:Name="SuppliersGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MinHeight="300">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Company" Binding="{Binding CompanyName}" Width="2*"/>
+                            <DataGridTextColumn Header="Email" Binding="{Binding ContactEmail}" Width="2*"/>
+                            <DataGridTextColumn Header="Products" Binding="{Binding ProductCount}" Width="*"/>
+                            <DataGridTextColumn Header="Low Stock" Binding="{Binding LowStockProductCount}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+                <TextBlock x:Name="SuppliersStatus" Text="Sign in to load suppliers." Foreground="#64748B" Margin="0,12"/>
+            </StackPanel>
+        </ScrollViewer>
+        <ScrollViewer x:Name="CustomersPage" Grid.Column="1" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="32">
+                <TextBlock Text="Customer management" Foreground="#2563EB" FontWeight="SemiBold"/>
+                <TextBlock Text="Customers" FontSize="28" FontWeight="Bold" Foreground="#111827" Margin="0,6,0,20"/>
+                <Button Content="Refresh Customers" HorizontalAlignment="Left" Click="Customers_Click" Margin="0,0,0,16"/>
+                <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10" Padding="8">
+                    <DataGrid x:Name="CustomersGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MinHeight="300">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Name" Binding="{Binding FullName}" Width="2*"/>
+                            <DataGridTextColumn Header="Company" Binding="{Binding CompanyName}" Width="*"/>
+                            <DataGridTextColumn Header="Email" Binding="{Binding Email}" Width="2*"/>
+                            <DataGridTextColumn Header="Phone" Binding="{Binding PhoneNumber}" Width="*"/>
+                            <DataGridTextColumn Header="WhatsApp" Binding="{Binding WhatsAppNumber}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+                <TextBlock x:Name="CustomersStatus" Text="Sign in to load customers." Foreground="#64748B" Margin="0,12"/>
             </StackPanel>
         </ScrollViewer>
     </Grid>
