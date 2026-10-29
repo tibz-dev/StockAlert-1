@@ -22,17 +22,62 @@ public partial class MainWindow : Window
 
     private void Dashboard_Click(object sender, RoutedEventArgs e)
     {
-        InventoryPage.Visibility = Visibility.Collapsed;
-        DashboardPage.Visibility = Visibility.Visible;
+        ShowPage(DashboardPage);
         Title = "StockAlert Desktop | Dashboard";
         UpdateDashboard();
     }
 
     private void Inventory_Click(object sender, RoutedEventArgs e)
     {
-        DashboardPage.Visibility = Visibility.Collapsed;
-        InventoryPage.Visibility = Visibility.Visible;
+        ShowPage(InventoryPage);
         Title = "StockAlert Desktop | Inventory";
+    }
+
+    private void ShowPage(UIElement page)
+    {
+        DashboardPage.Visibility = Visibility.Collapsed;
+        InventoryPage.Visibility = Visibility.Collapsed;
+        SuppliersPage.Visibility = Visibility.Collapsed;
+        CustomersPage.Visibility = Visibility.Collapsed;
+        page.Visibility = Visibility.Visible;
+    }
+
+    private async void Suppliers_Click(object sender, RoutedEventArgs e)
+    {
+        ShowPage(SuppliersPage);
+        Title = "StockAlert Desktop | Suppliers";
+        try
+        {
+            if (string.IsNullOrWhiteSpace(_sessionToken))
+                throw new InvalidOperationException("Sign in on the Inventory page first.");
+            SuppliersStatus.Text = "Loading suppliers...";
+            var suppliers = await _client.GetSuppliersAsync(ApiUrlBox.Text, _sessionToken);
+            SuppliersGrid.ItemsSource = suppliers;
+            SuppliersStatus.Text = $"{suppliers.Count} suppliers loaded.";
+        }
+        catch (Exception ex)
+        {
+            SuppliersStatus.Text = ex.Message;
+        }
+    }
+
+    private async void Customers_Click(object sender, RoutedEventArgs e)
+    {
+        ShowPage(CustomersPage);
+        Title = "StockAlert Desktop | Customers";
+        try
+        {
+            if (string.IsNullOrWhiteSpace(_sessionToken))
+                throw new InvalidOperationException("Sign in on the Inventory page first.");
+            CustomersStatus.Text = "Loading customers...";
+            var customers = await _client.GetCustomersAsync(ApiUrlBox.Text, _sessionToken);
+            CustomersGrid.ItemsSource = customers;
+            CustomersStatus.Text = $"{customers.Count} customers loaded.";
+        }
+        catch (Exception ex)
+        {
+            CustomersStatus.Text = ex.Message;
+        }
     }
 
     private void UpdateDashboard()
