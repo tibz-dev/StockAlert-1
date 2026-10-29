@@ -60,6 +60,10 @@
                 </Border>
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="12,4">
+                        <Button Content="Login" Click="ShowLogin_Click" Background="Transparent" Foreground="#94A3B8" HorizontalContentAlignment="Left" Padding="18,12"/>
+                        <Button Content="API Connection" Click="ShowConnection_Click" Background="Transparent" Foreground="#94A3B8" HorizontalContentAlignment="Left" Padding="18,12"/>
+                        <TextBlock x:Name="SignedInStaffText" Style="{StaticResource SidebarText}" Text="Not signed in" TextWrapping="Wrap"/>
+                        <Button Content="Sign Out" Click="SignOut_Click" Background="Transparent" Foreground="#FCA5A5" HorizontalContentAlignment="Left" Padding="18,12"/>
                         <Button Content="Dashboard" Click="Dashboard_Click" Background="Transparent" Foreground="#94A3B8" HorizontalContentAlignment="Left" Margin="0,1" Padding="18,12"/>
                         <Border Background="#2563EB" CornerRadius="7" Margin="0,1">
                             <Button Content="Inventory" Click="Inventory_Click" Background="Transparent" Foreground="White" HorizontalContentAlignment="Left" Margin="0" Padding="18,12"/>
@@ -95,29 +99,10 @@
                         <TextBlock Text="Manage products, scan barcodes and print labels" Foreground="#6B7280" Margin="0,5,0,0"/>
                     </StackPanel>
                 </DockPanel>
-                <Border Grid.Row="1" Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="11" Padding="16" Margin="0,0,0,18">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="2*"/><ColumnDefinition Width="2*"/><ColumnDefinition Width="2*"/><ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0" Margin="0,0,12,0">
-                            <TextBlock Text="API URL" Style="{StaticResource FieldLabel}"/>
-                            <TextBox x:Name="ApiUrlBox" Text="https://localhost:7001" Margin="0,5,0,0"/>
-                        </StackPanel>
-                        <StackPanel Grid.Column="1" Margin="0,0,12,0">
-                            <TextBlock Text="Email" Style="{StaticResource FieldLabel}"/>
-                            <TextBox x:Name="EmailBox" Margin="0,5,0,0"/>
-                        </StackPanel>
-                        <StackPanel Grid.Column="2" Margin="0,0,12,0">
-                            <TextBlock Text="Password" Style="{StaticResource FieldLabel}"/>
-                            <PasswordBox x:Name="LoginPasswordBox" Padding="11,9" BorderBrush="#CBD5E1" Margin="0,5,0,0"/>
-                        </StackPanel>
-                        <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Bottom">
-                            <Button Content="Sign In" Click="Login_Click" Margin="0,0,8,0"/>
-                            <Button Content="Refresh" Click="LoadProducts_Click"/>
-                        </StackPanel>
-                    </Grid>
-                </Border>
+                <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,16">
+                    <TextBlock Text="Signed-in staff only. Use the Login tab to change accounts." VerticalAlignment="Center" Foreground="#64748B" Margin="0,0,16,0"/>
+                    <Button Content="Refresh Inventory" Click="LoadProducts_Click"/>
+                </StackPanel>
                 <Border Grid.Row="2" Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="11" Padding="16" Margin="0,0,0,18">
                     <DockPanel>
                         <Button DockPanel.Dock="Right" Content="Print Barcode Label" Margin="12,0,0,0" Click="PrintLabel_Click"/>
@@ -370,6 +355,37 @@
                     </DataGrid>
                 </Border>
                 <TextBlock x:Name="SalesStatus" Foreground="#64748B" Margin="0,12" Text="Sign in to load sales."/>
+            </StackPanel>
+        </ScrollViewer>
+        <ScrollViewer x:Name="LoginPage" Grid.Column="1" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+            <StackPanel Margin="32" MaxWidth="640" HorizontalAlignment="Left">
+                <TextBlock Text="Staff access" Foreground="#2563EB" FontWeight="SemiBold"/>
+                <TextBlock Text="Sign in to StockAlert" FontSize="28" FontWeight="Bold" Margin="0,6,0,18"/>
+                <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10" Padding="22">
+                    <StackPanel Width="480">
+                        <TextBlock Text="Email"/>
+                        <TextBox x:Name="EmailBox" Margin="0,6,0,14"/>
+                        <TextBlock Text="Password"/>
+                        <PasswordBox x:Name="LoginPasswordBox" Padding="11,9" Margin="0,6,0,18"/>
+                        <Button Content="Sign In" Click="Login_Click" HorizontalAlignment="Left"/>
+                        <TextBlock x:Name="LoginStatusText" Text="Use your assigned staff account." Foreground="#64748B" Margin="0,14,0,0" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+                <TextBlock Text="Staff badge barcode and magnetic-stripe login will require centrally managed, revocable badge credentials and an authenticated reader workflow. Fingerprint sign-in will use Windows Hello; fingerprint templates will not be stored in StockAlert." TextWrapping="Wrap" Foreground="#64748B" Margin="0,18,0,0"/>
+            </StackPanel>
+        </ScrollViewer>
+        <ScrollViewer x:Name="ConnectionPage" Grid.Column="1" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+            <StackPanel Margin="32" MaxWidth="640" HorizontalAlignment="Left">
+                <TextBlock Text="System configuration" Foreground="#2563EB" FontWeight="SemiBold"/>
+                <TextBlock Text="API Connection" FontSize="28" FontWeight="Bold" Margin="0,6,0,18"/>
+                <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10" Padding="22">
+                    <StackPanel Width="480">
+                        <TextBlock Text="API base URL" Foreground="#64748B"/>
+                        <TextBox x:Name="ApiUrlBox" Text="https://localhost:7001" Margin="0,6,0,12"/>
+                        <Button Content="Save Connection" Click="SaveConnection_Click" HorizontalAlignment="Left"/>
+                        <TextBlock x:Name="ConnectionStatusText" Text="HTTPS required, except localhost development." Foreground="#64748B" Margin="0,12,0,0" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
             </StackPanel>
         </ScrollViewer>
     </Grid>
