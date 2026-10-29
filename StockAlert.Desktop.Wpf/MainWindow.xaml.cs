@@ -246,6 +246,24 @@ public partial class MainWindow : Window
         catch (Exception ex) { StocktakesStatus.Text = ex.Message; }
     }
 
+    private async void CreateQuote_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(_sessionToken))
+                throw new InvalidOperationException("Sign in first.");
+            // Retrieve fresh products before building the quote.
+            _products = await _client.GetProductsAsync(ApiUrlBox.Text, _sessionToken);
+            var editor = new QuoteEditorWindow(_products) { Owner = this };
+            if (editor.ShowDialog() != true) return;
+            await _client.CreateQuoteAsync(ApiUrlBox.Text, _sessionToken,
+                editor.CustomerName, null, editor.Items, editor.Notes);
+            await RefreshQuotesAsync();
+            QuotesStatus.Text = "Quote created successfully.";
+        }
+        catch (Exception ex) { QuotesStatus.Text = ex.Message; }
+    }
+
     private QuoteRow SelectedQuote() =>
         QuotesGrid.SelectedItem as QuoteRow
         ?? throw new InvalidOperationException("Select a quote first.");
