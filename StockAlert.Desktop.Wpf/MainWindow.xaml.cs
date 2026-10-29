@@ -42,6 +42,8 @@ public partial class MainWindow : Window
         CustomersPage.Visibility = Visibility.Collapsed;
         StockMovementsPage.Visibility = Visibility.Collapsed;
         StocktakesPage.Visibility = Visibility.Collapsed;
+        QuotesPage.Visibility = Visibility.Collapsed;
+        SalesPage.Visibility = Visibility.Collapsed;
         page.Visibility = Visibility.Visible;
     }
 
@@ -242,6 +244,38 @@ public partial class MainWindow : Window
             Stocktakes_Click(sender, e);
         }
         catch (Exception ex) { StocktakesStatus.Text = ex.Message; }
+    }
+
+    private async void Quotes_Click(object sender, RoutedEventArgs e)
+    {
+        ShowPage(QuotesPage);
+        Title = "StockAlert Desktop | Quotes";
+        try
+        {
+            if (string.IsNullOrWhiteSpace(_sessionToken))
+                throw new InvalidOperationException("Sign in on the Inventory page first.");
+            QuotesStatus.Text = "Loading quotes...";
+            var quotes = await _client.GetQuotesAsync(ApiUrlBox.Text, _sessionToken);
+            QuotesGrid.ItemsSource = quotes;
+            QuotesStatus.Text = $"{quotes.Count} quotes loaded.";
+        }
+        catch (Exception ex) { QuotesStatus.Text = ex.Message; }
+    }
+
+    private async void Sales_Click(object sender, RoutedEventArgs e)
+    {
+        ShowPage(SalesPage);
+        Title = "StockAlert Desktop | Sales";
+        try
+        {
+            if (string.IsNullOrWhiteSpace(_sessionToken))
+                throw new InvalidOperationException("Sign in on the Inventory page first.");
+            SalesStatus.Text = "Loading sales...";
+            var sales = await _client.GetSalesAsync(ApiUrlBox.Text, _sessionToken);
+            SalesGrid.ItemsSource = sales;
+            SalesStatus.Text = $"{sales.Count} sales loaded.";
+        }
+        catch (Exception ex) { SalesStatus.Text = ex.Message; }
     }
 
     private void UpdateDashboard()
