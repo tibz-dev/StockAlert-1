@@ -329,6 +329,33 @@
                         <TextBlock x:Name="PosPreviewText" Text="Enter or scan a barcode, then select Find Item." Foreground="#64748B" Margin="0,12,0,0"/>
                     </StackPanel>
                 </Border>
+                <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10" Padding="16" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="Multi-item Cash Checkout" FontSize="20" FontWeight="Bold" Foreground="#111827" Margin="0,0,0,6"/>
+                        <TextBlock Text="Scan products into a cart, preview server pricing and confirm cash received. Card and EFT are not supported here." TextWrapping="Wrap" Foreground="#64748B" Margin="0,0,0,12"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                            <TextBox x:Name="CartBarcodeBox" Width="215" ToolTip="Product barcode"/>
+                            <TextBox x:Name="CartQuantityBox" Text="1" Width="65" Margin="8,0" ToolTip="Quantity"/>
+                            <Button Content="Add to Cart" Click="CartAdd_Click" Margin="0,0,8,0"/>
+                            <Button Content="Remove Selected" Click="CartRemove_Click" Margin="0,0,8,0"/>
+                            <Button Content="Clear Cart" Click="CartClear_Click"/>
+                        </StackPanel>
+                        <DataGrid x:Name="CartGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" Height="220">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Product" Binding="{Binding ProductName}" Width="2*"/>
+                                <DataGridTextColumn Header="Barcode" Binding="{Binding Barcode}" Width="*"/>
+                                <DataGridTextColumn Header="Qty" Binding="{Binding Quantity}" Width="*"/>
+                                <DataGridTextColumn Header="Unit Price (R)" Binding="{Binding UnitPrice, StringFormat=N2}" Width="*"/>
+                                <DataGridTextColumn Header="Line Total (R)" Binding="{Binding LineTotal, StringFormat=N2}" Width="*"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                            <Button Content="Preview Cart" Click="CartPreview_Click" Margin="0,0,8,0"/>
+                            <Button Content="Confirm Cash Received &amp; Checkout" Click="CartCheckout_Click" Background="#15803D"/>
+                        </StackPanel>
+                        <TextBlock x:Name="CartStatus" Foreground="#475569" TextWrapping="Wrap" Margin="0,12,0,0" Text="No items in cart."/>
+                    </StackPanel>
+                </Border>
                 <Button Content="Refresh Sales" HorizontalAlignment="Left" Click="Sales_Click" Margin="0,0,0,16"/>
                 <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10" Padding="8">
                     <DataGrid x:Name="SalesGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MinHeight="320">
