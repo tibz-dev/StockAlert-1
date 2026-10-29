@@ -241,6 +241,23 @@
                         </DataGrid.Columns>
                     </DataGrid>
                 </Border>
+                <TextBlock Text="Selected stocktake items" FontSize="19" FontWeight="SemiBold" Foreground="#111827" Margin="0,20,0,8"/>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                    <Button Content="Open Selected Stocktake" Click="OpenStocktake_Click" Margin="0,0,10,0"/>
+                    <TextBox x:Name="StocktakeBarcodeBox" Width="200" ToolTip="Scan or type the item's barcode"/>
+                    <TextBox x:Name="StocktakeQuantityBox" Width="80" Margin="8,0" ToolTip="Counted quantity"/>
+                    <Button Content="Submit Count" Click="SubmitStocktakeCount_Click" Margin="0,0,8,0"/>
+                    <Button Content="Submit Recount" Click="SubmitStocktakeRecount_Click"/>
+                </StackPanel>
+                <DataGrid x:Name="StocktakeItemsGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MinHeight="220">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Product" Binding="{Binding ProductName}" Width="2*"/>
+                        <DataGridTextColumn Header="Barcode" Binding="{Binding Barcode}" Width="*"/>
+                        <DataGridTextColumn Header="First Count" Binding="{Binding FirstCount}" Width="*"/>
+                        <DataGridTextColumn Header="Recount" Binding="{Binding SecondCount}" Width="*"/>
+                        <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
                 <TextBlock x:Name="StocktakesStatus" Text="Sign in to load stocktakes." Foreground="#64748B" Margin="0,12"/>
             </StackPanel>
         </ScrollViewer>
