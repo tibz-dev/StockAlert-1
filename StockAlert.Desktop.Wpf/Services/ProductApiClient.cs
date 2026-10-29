@@ -115,6 +115,37 @@ public sealed class ProductApiClient : IDisposable
             throw new HttpRequestException(await response.Content.ReadAsStringAsync());
     }
 
+    public async Task CreateQuoteAsync(string apiUrl, string jwt, string customerName,
+        Guid? customerId, IReadOnlyList<(Guid ProductId, int Quantity)> items, string? notes)
+    {
+        Configure(apiUrl, jwt);
+        var payload = new
+        {
+            customerId,
+            customerName,
+            customerCompanyName = (string?)null,
+            customerEmail = (string?)null,
+            customerPhoneNumber = (string?)null,
+            customerWhatsAppNumber = (string?)null,
+            customerHasWhatsApp = false,
+            customerAddress = (string?)null,
+            salespersonId = (Guid?)null,
+            validUntil = (DateTime?)null,
+            notes,
+            depositPercentage = (decimal?)null,
+            depositRequired = (decimal?)null,
+            items = items.Select(item => new
+            {
+                productId = item.ProductId,
+                quantity = item.Quantity,
+                unitPrice = (decimal?)null
+            }).ToArray()
+        };
+        using var response = await _http.PostAsJsonAsync(
+            new Uri(new Uri(apiUrl.TrimEnd('/') + "/"), "api/Quotes"), payload);
+        await EnsureSuccessAsync(response);
+    }
+
     public async Task UpdateQuoteStatusAsync(string apiUrl, string jwt, Guid id, string status)
     {
         Configure(apiUrl, jwt);
