@@ -67,10 +67,10 @@
                         <Button Content="Stock Movements" Click="StockMovements_Click" Background="Transparent" Foreground="#94A3B8" HorizontalContentAlignment="Left" Margin="0,1" Padding="18,12"/>
                         <Button Content="Stocktakes" Click="Stocktakes_Click" Background="Transparent" Foreground="#94A3B8" HorizontalContentAlignment="Left" Margin="0,1" Padding="18,12"/>
                         <Button Content="Suppliers" Click="Suppliers_Click" Background="Transparent" Foreground="#94A3B8" HorizontalContentAlignment="Left" Margin="0,1" Padding="18,12"/>
-                        <TextBlock Style="{StaticResource SidebarText}" Text="Quotes"/>
+                        <Button Content="Quotes" Click="Quotes_Click" Background="Transparent" Foreground="#94A3B8" HorizontalContentAlignment="Left" Margin="0,1" Padding="18,12"/>
                         <Button Content="Customers" Click="Customers_Click" Background="Transparent" Foreground="#94A3B8" HorizontalContentAlignment="Left" Margin="0,1" Padding="18,12"/>
                         <TextBlock Style="{StaticResource SidebarText}" Text="Staff"/>
-                        <TextBlock Style="{StaticResource SidebarText}" Text="Sales"/>
+                        <Button Content="Sales" Click="Sales_Click" Background="Transparent" Foreground="#94A3B8" HorizontalContentAlignment="Left" Margin="0,1" Padding="18,12"/>
                         <TextBlock Style="{StaticResource SidebarText}" Text="Reports"/>
                         <TextBlock Style="{StaticResource SidebarText}" Text="Business Settings"/>
                         <TextBlock Style="{StaticResource SidebarText}" Text="Audit Logs"/>
@@ -269,6 +269,47 @@
                     </DataGrid.Columns>
                 </DataGrid>
                 <TextBlock x:Name="StocktakesStatus" Text="Sign in to load stocktakes." Foreground="#64748B" Margin="0,12"/>
+            </StackPanel>
+        </ScrollViewer>
+        <ScrollViewer x:Name="QuotesPage" Grid.Column="1" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="32">
+                <TextBlock Text="Sales management" Foreground="#2563EB" FontWeight="SemiBold"/>
+                <TextBlock Text="Quotes" FontSize="28" FontWeight="Bold" Margin="0,6,0,20"/>
+                <Button Content="Refresh Quotes" HorizontalAlignment="Left" Click="Quotes_Click" Margin="0,0,0,16"/>
+                <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10" Padding="8">
+                    <DataGrid x:Name="QuotesGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MinHeight="320">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Number" Binding="{Binding QuoteNumber}" Width="*"/>
+                            <DataGridTextColumn Header="Customer" Binding="{Binding CustomerName}" Width="2*"/>
+                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="*"/>
+                            <DataGridTextColumn Header="Total (R)" Binding="{Binding Total, StringFormat=N2}" Width="*"/>
+                            <DataGridTextColumn Header="Paid (R)" Binding="{Binding AmountPaid, StringFormat=N2}" Width="*"/>
+                            <DataGridTextColumn Header="Balance (R)" Binding="{Binding BalanceDue, StringFormat=N2}" Width="*"/>
+                            <DataGridTextColumn Header="Valid Until" Binding="{Binding ValidUntil, StringFormat=yyyy-MM-dd}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+                <TextBlock x:Name="QuotesStatus" Foreground="#64748B" Margin="0,12" Text="Sign in to load quotes."/>
+            </StackPanel>
+        </ScrollViewer>
+        <ScrollViewer x:Name="SalesPage" Grid.Column="1" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="32">
+                <TextBlock Text="Sales management" Foreground="#2563EB" FontWeight="SemiBold"/>
+                <TextBlock Text="Sales History" FontSize="28" FontWeight="Bold" Margin="0,6,0,20"/>
+                <Button Content="Refresh Sales" HorizontalAlignment="Left" Click="Sales_Click" Margin="0,0,0,16"/>
+                <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10" Padding="8">
+                    <DataGrid x:Name="SalesGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MinHeight="320">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Receipt" Binding="{Binding ReceiptNumber}" Width="*"/>
+                            <DataGridTextColumn Header="Date" Binding="{Binding SaleDate, StringFormat=yyyy-MM-dd HH:mm}" Width="*"/>
+                            <DataGridTextColumn Header="Product" Binding="{Binding ProductName}" Width="2*"/>
+                            <DataGridTextColumn Header="Quantity" Binding="{Binding Quantity}" Width="*"/>
+                            <DataGridTextColumn Header="Total (R)" Binding="{Binding TotalPrice, StringFormat=N2}" Width="*"/>
+                            <DataGridTextColumn Header="Salesperson" Binding="{Binding SalespersonName}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+                <TextBlock x:Name="SalesStatus" Foreground="#64748B" Margin="0,12" Text="Sign in to load sales."/>
             </StackPanel>
         </ScrollViewer>
     </Grid>
