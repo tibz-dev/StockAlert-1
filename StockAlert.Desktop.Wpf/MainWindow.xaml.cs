@@ -186,6 +186,64 @@ public partial class MainWindow : Window
         catch (Exception ex) { StocktakesStatus.Text = ex.Message; }
     }
 
+    private async void CreateStocktake_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(_sessionToken))
+                throw new InvalidOperationException("Sign in first.");
+            var title = NewStocktakeTitleBox.Text.Trim();
+            if (title.Length == 0)
+                throw new ArgumentException("Enter a stocktake title.");
+            await _client.CreateStocktakeAsync(ApiUrlBox.Text, _sessionToken,
+                title, NewStocktakeLocationBox.Text.Trim(), null);
+            NewStocktakeTitleBox.Clear();
+            StocktakesStatus.Text = "Stocktake created. Refreshing...";
+            Stocktakes_Click(sender, e);
+        }
+        catch (Exception ex) { StocktakesStatus.Text = ex.Message; }
+    }
+
+    private async void ResolveStocktake_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(_sessionToken) || !_selectedStocktakeId.HasValue)
+                throw new InvalidOperationException("Sign in and open a stocktake first.");
+            if (StocktakeItemsGrid.SelectedItem is not StocktakeItemRow item)
+                throw new InvalidOperationException("Select an item to resolve.");
+            if (!int.TryParse(StocktakeQuantityBox.Text, out var quantity) || quantity < 0)
+                throw new ArgumentException("Enter a non-negative final quantity.");
+            var reason = StocktakeResolutionReasonBox.Text.Trim();
+            if (string.IsNullOrWhiteSpace(reason))
+                throw new ArgumentException("Provide a reason for resolution.");
+            await _client.ResolveStocktakeItemAsync(ApiUrlBox.Text, _sessionToken,
+                _selectedStocktakeId.Value, item.Id, quantity, reason);
+            await ReloadStocktakeItemsAsync();
+            StocktakesStatus.Text = "Item resolution saved.";
+        }
+        catch (Exception ex) { StocktakesStatus.Text = ex.Message; }
+    }
+
+    private async void CompleteStocktake_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(_sessionToken) || !_selectedStocktakeId.HasValue)
+                throw new InvalidOperationException("Sign in and open a stocktake first.");
+            if (MessageBox.Show("Complete this stocktake? This action may finalise inventory adjustments.",
+                "Confirm completion", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+                return;
+            await _client.CompleteStocktakeAsync(ApiUrlBox.Text, _sessionToken,
+                _selectedStocktakeId.Value);
+            StocktakesStatus.Text = "Stocktake completed.";
+            _selectedStocktakeId = null;
+            StocktakeItemsGrid.ItemsSource = null;
+            Stocktakes_Click(sender, e);
+        }
+        catch (Exception ex) { StocktakesStatus.Text = ex.Message; }
+    }
+
     private void UpdateDashboard()
     {
         TotalProductsText.Text = _products.Count.ToString("N0");
