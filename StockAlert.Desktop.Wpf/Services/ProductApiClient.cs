@@ -38,6 +38,26 @@ public sealed class ProductApiClient : IDisposable
             ?? new List<CustomerRow>();
     }
 
+    public async Task<IReadOnlyList<StockMovementRow>> GetStockMovementsAsync(string apiUrl, string jwt)
+    {
+        Configure(apiUrl, jwt);
+        using var response = await _http.GetAsync(new Uri(
+            new Uri(apiUrl.TrimEnd('/') + "/"), "api/stock-movements?take=100"));
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<List<StockMovementRow>>()
+            ?? new List<StockMovementRow>();
+    }
+
+    public async Task<IReadOnlyList<StocktakeSessionRow>> GetStocktakesAsync(string apiUrl, string jwt)
+    {
+        Configure(apiUrl, jwt);
+        using var response = await _http.GetAsync(new Uri(
+            new Uri(apiUrl.TrimEnd('/') + "/"), "api/stocktakes"));
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<List<StocktakeSessionRow>>()
+            ?? new List<StocktakeSessionRow>();
+    }
+
     public async Task<string> GetBarcodeSvgAsync(string apiUrl, string jwt, Guid id)
     {
         Configure(apiUrl, jwt);
