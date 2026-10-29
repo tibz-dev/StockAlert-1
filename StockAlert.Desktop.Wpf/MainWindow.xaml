@@ -277,6 +277,7 @@
                 <TextBlock Text="Quotes" FontSize="28" FontWeight="Bold" Margin="0,6,0,20"/>
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
                     <Button Content="Refresh Quotes" Click="Quotes_Click" Margin="0,0,8,0"/>
+                    <Button Content="Create Quote" Click="CreateQuote_Click" Margin="0,0,8,0"/>
                     <ComboBox x:Name="QuoteStatusCombo" Width="150" SelectedIndex="0" Margin="0,0,8,0">
                         <ComboBoxItem Content="Draft"/><ComboBoxItem Content="Sent"/>
                         <ComboBoxItem Content="Accepted"/><ComboBoxItem Content="Rejected"/>
