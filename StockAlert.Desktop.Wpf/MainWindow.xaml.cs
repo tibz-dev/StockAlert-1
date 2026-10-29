@@ -14,6 +14,7 @@ public partial class MainWindow : Window
     private string? _sessionToken;
     private IReadOnlyList<ProductRow> _products = Array.Empty<ProductRow>();
     private Guid? _selectedStocktakeId;
+    private ProductRow? _posProduct;
 
     public MainWindow()
     {
@@ -350,6 +351,57 @@ public partial class MainWindow : Window
             QuotesStatus.Text = $"{quotes.Count} quotes loaded.";
         }
         catch (Exception ex) { QuotesStatus.Text = ex.Message; }
+    }
+
+    private async void PosLookup_Click(object sender, RoutedEventArgs e)
+    {
+        _posProduct = null;
+        try
+        {
+            var token = AuthorizedToken();
+            var barcode = PosBarcodeBox.Text.Trim();
+            if (barcode.Length == 0)
+                throw new ArgumentException("Scan or enter a barcode.");
+            var products = await _client.GetProductsAsync(ApiUrlBox.Text, token);
+            var matches = products.Where(p => string.Equals(p.Barcode, barcode,
+                StringComparison.OrdinalIgnoreCase)).Take(2).ToList();
+            if (matches.Count != 1)
+                throw new InvalidOperationException("Barcode must match exactly one active product.");
+            _posProduct = matches[0];
+            PosPreviewText.Text = $"{_posProduct.Name} | R {_posProduct.Price:N2} each | Available: {_posProduct.AvailableQuantity}";
+        }
+        catch (Exception ex) { PosPreviewText.Text = ex.Message; }
+    }
+
+    private async void PosSale_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var token = AuthorizedToken();
+            if (_posProduct == null ||
+                !string.Equals(_posProduct.Barcode, PosBarcodeBox.Text.Trim(), StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("Find the scanned product before recording a sale.");
+            if (!int.TryParse(PosQuantityBox.Text, out var quantity) || quantity <= 0)
+                throw new ArgumentException("Quantity must be a positive whole number.");
+            if (quantity > _posProduct.AvailableQuantity)
+                throw new InvalidOperationException("Quantity exceeds currently available stock.");
+            var total = _posProduct.Price * quantity;
+            var customer = PosCustomerBox.Text.Trim();
+            if (MessageBox.Show($"Record {quantity} x {_posProduct.Name} (estimated R {total:N2})?\nThis saves a sale and deducts stock. It does NOT collect or verify payment.",
+                "Confirm inventory-impacting sale", MessageBoxButton.YesNo, MessageBoxImage.Warning)
+                != MessageBoxResult.Yes) return;
+            var receipt = await _client.RecordSaleAsync(ApiUrlBox.Text, token,
+                _posProduct.Id, quantity, string.IsNullOrEmpty(customer) ? null : customer);
+            PosPreviewText.Text = $"Sale recorded: {receipt.ReceiptNumber}, R {receipt.TotalPrice:N2}. Payment not processed.";
+            _posProduct = null;
+            PosBarcodeBox.Clear();
+            PosQuantityBox.Text = "1";
+            await RefreshAsync();
+            var sales = await _client.GetSalesAsync(ApiUrlBox.Text, token);
+            SalesGrid.ItemsSource = sales;
+            SalesStatus.Text = $"{sales.Count} sales loaded.";
+        }
+        catch (Exception ex) { PosPreviewText.Text = ex.Message; }
     }
 
     private async void Sales_Click(object sender, RoutedEventArgs e)
