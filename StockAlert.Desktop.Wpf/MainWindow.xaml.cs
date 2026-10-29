@@ -12,6 +12,7 @@ public partial class MainWindow : Window
 {
     private readonly ProductApiClient _client = new();
     private string? _sessionToken;
+    private StaffSession? _staff;
     private IReadOnlyList<ProductRow> _products = Array.Empty<ProductRow>();
     private Guid? _selectedStocktakeId;
     private ProductRow? _posProduct;
@@ -23,6 +24,81 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         Closed += (_, _) => _client.Dispose();
+        ShowPage(LoginPage);
+    }
+
+    private bool HasAnyRole(params string[] roles) =>
+        _sessionToken != null && _staff != null &&
+        _staff.Roles.Any(x => roles.Contains(x, StringComparer.OrdinalIgnoreCase));
+
+    private bool CanOpenPage(UIElement page)
+    {
+        if (page == LoginPage || page == ConnectionPage) return true;
+        if (page == DashboardPage) return _sessionToken != null && _staff != null;
+        if (page == SalesPage || page == QuotesPage)
+            return HasAnyRole("Owner", "Manager", "Sales");
+        if (page == StocktakesPage || page == StockMovementsPage || page == InventoryPage)
+            return HasAnyRole("Owner", "Manager", "Stock");
+        if (page == SuppliersPage || page == CustomersPage)
+            return HasAnyRole("Owner", "Manager");
+        return false;
+    }
+
+    private void ShowLogin_Click(object sender, RoutedEventArgs e) => ShowPage(LoginPage);
+
+    private void ShowConnection_Click(object sender, RoutedEventArgs e)
+    {
+        if (_sessionToken != null && !HasAnyRole("Owner", "Manager"))
+        {
+            ConnectionStatusText.Text = "Changing the API connection is restricted to managers.";
+            return;
+        }
+        ShowPage(ConnectionPage);
+    }
+
+    private void SaveConnection_Click(object sender, RoutedEventArgs e)
+    {
+        var address = ApiUrlBox.Text.Trim();
+        if (!Uri.TryCreate(address, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttps &&
+             !(uri.Scheme == Uri.UriSchemeHttp && uri.IsLoopback)))
+        {
+            ConnectionStatusText.Text = "Enter an HTTPS API URL (HTTP permitted only on localhost).";
+            return;
+        }
+        // Connection changes invalidate prior sessions, inventory and in-memory cart.
+        SignOutSession();
+        ApiUrlBox.Text = address.TrimEnd('/');
+        ConnectionStatusText.Text = "Connection address updated for this application session. Sign in again.";
+        ShowPage(LoginPage);
+    }
+
+    private void SignOut_Click(object sender, RoutedEventArgs e)
+    {
+        SignOutSession();
+        ShowPage(LoginPage);
+    }
+
+    private void SignOutSession()
+    {
+        _sessionToken = null;
+        _staff = null;
+        _products = Array.Empty<ProductRow>();
+        _cartLines.Clear();
+        _cartOperationId = Guid.NewGuid();
+        _posProduct = null;
+        _selectedStocktakeId = null;
+        SignedInStaffText.Text = "Not signed in";
+        LoginPasswordBox.Clear();
+        ProductsGrid.ItemsSource = null;
+        CartGrid.ItemsSource = null;
+        SalesGrid.ItemsSource = null;
+        QuotesGrid.ItemsSource = null;
+        CustomersGrid.ItemsSource = null;
+        SuppliersGrid.ItemsSource = null;
+        StocktakesGrid.ItemsSource = null;
+        StocktakeItemsGrid.ItemsSource = null;
+        StockMovementsGrid.ItemsSource = null;
     }
 
     private void Dashboard_Click(object sender, RoutedEventArgs e)
@@ -48,6 +124,14 @@ public partial class MainWindow : Window
         StocktakesPage.Visibility = Visibility.Collapsed;
         QuotesPage.Visibility = Visibility.Collapsed;
         SalesPage.Visibility = Visibility.Collapsed;
+        LoginPage.Visibility = Visibility.Collapsed;
+        ConnectionPage.Visibility = Visibility.Collapsed;
+        if (page != LoginPage && page != ConnectionPage && !CanOpenPage(page))
+        {
+            LoginStatusText.Text = "Your account is not authorised for that module. Sign in with an appropriate staff role.";
+            LoginPage.Visibility = Visibility.Visible;
+            return;
+        }
         page.Visibility = Visibility.Visible;
     }
 
@@ -431,6 +515,11 @@ public partial class MainWindow : Window
 
     private async void CartCheckout_Click(object sender, RoutedEventArgs e)
     {
+        if (!HasAnyRole("Owner", "Manager", "Sales"))
+        {
+            CartStatus.Text = "Your role cannot perform checkout.";
+            return;
+        }
         if (_cartPosting) return;
         try
         {
@@ -539,17 +628,22 @@ public partial class MainWindow : Window
         try
         {
             _sessionToken = null;
+            _staff = null;
             _products = Array.Empty<ProductRow>();
             ApplySearch();
             _sessionToken = await _client.LoginAsync(ApiUrlBox.Text, EmailBox.Text, LoginPasswordBox.Password);
+            _staff = await _client.GetSessionAsync(ApiUrlBox.Text, _sessionToken);
+            SignedInStaffText.Text = $"{_staff.Name ?? _staff.Email} ({string.Join(", ", _staff.Roles)})";
+            ShowPage(DashboardPage);
             LoginPasswordBox.Clear();
+            LoginStatusText.Text = "Signed in successfully.";
             StatusText.Text = "Signed in. Loading inventory...";
             await RefreshAsync();
         }
         catch (Exception ex)
         {
             LoginPasswordBox.Clear();
-            StatusText.Text = "Sign-in failed.";
+            LoginStatusText.Text = "Sign-in failed.";
             MessageBox.Show(ex.Message, "Sign In", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
@@ -579,6 +673,11 @@ public partial class MainWindow : Window
 
     private async Task OpenEditorAsync(ProductRow? product)
     {
+        if (!HasAnyRole("Owner", "Manager", "Stock"))
+        {
+            MessageBox.Show("Your role cannot change inventory.");
+            return;
+        }
         if (string.IsNullOrWhiteSpace(_sessionToken))
         {
             MessageBox.Show("Please sign in first.", "Inventory");
