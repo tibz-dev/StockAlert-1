@@ -24,7 +24,7 @@ public sealed class StaffBadgeService
 
     public async Task<object[]> ListAsync(CancellationToken ct)
     {
-        return await _db.StaffBadges.AsNoTracking()
+        var rows = await _db.StaffBadges.AsNoTracking()
             .Include(x => x.User)
             .OrderByDescending(x => x.CreatedAtUtc)
             .Select(x => new
@@ -37,13 +37,13 @@ public sealed class StaffBadgeService
                 x.CreatedAtUtc,
                 x.RevokedAtUtc
             })
-            .Cast<object>()
-            .ToArrayAsync(ct);
+            .ToListAsync(ct);
+        return rows.Cast<object>().ToArray();
     }
 
     public async Task<object[]> ListStaffAsync(CancellationToken ct)
     {
-        return await _users.Users.AsNoTracking()
+        var rows = await _users.Users.AsNoTracking()
             .OrderBy(x => x.FullName)
             .Select(x => new { UserId = x.Id, x.FullName, x.Email })
             .Cast<object>()
