@@ -185,6 +185,32 @@ public sealed class ProductApiClient : IDisposable
         return await response.Content.ReadFromJsonAsync<List<QuoteRow>>() ?? new List<QuoteRow>();
     }
 
+    public async Task<CheckoutPreview> PreviewCheckoutAsync(string apiUrl, string jwt,
+        IReadOnlyList<CheckoutCartLine> cart)
+    {
+        Configure(apiUrl, jwt);
+        using var response = await _http.PostAsJsonAsync(
+            new Uri(new Uri(apiUrl.TrimEnd('/') + "/"), "api/checkout/preview"),
+            new { items = cart.Select(x => new { productId = x.ProductId, quantity = x.Quantity }).ToArray() });
+        await EnsureSuccessAsync(response);
+        return await response.Content.ReadFromJsonAsync<CheckoutPreview>()
+            ?? throw new InvalidOperationException("Empty checkout preview response.");
+    }
+
+    public async Task<CheckoutReceipt> CommitCashCheckoutAsync(string apiUrl, string jwt,
+        IReadOnlyList<CheckoutCartLine> cart, Guid operationId)
+    {
+        Configure(apiUrl, jwt);
+        using var response = await _http.PostAsJsonAsync(
+            new Uri(new Uri(apiUrl.TrimEnd('/') + "/"), "api/checkout/cash"),
+            new { clientOperationId = operationId,
+                  items = cart.Select(x => new { productId = x.ProductId, quantity = x.Quantity }).ToArray(),
+                  cashReceived = true });
+        await EnsureSuccessAsync(response);
+        return await response.Content.ReadFromJsonAsync<CheckoutReceipt>()
+            ?? throw new InvalidOperationException("Empty checkout receipt response.");
+    }
+
     public async Task<SaleReceiptResult> RecordSaleAsync(string apiUrl, string jwt,
         Guid productId, int quantity, string? customerName)
     {
