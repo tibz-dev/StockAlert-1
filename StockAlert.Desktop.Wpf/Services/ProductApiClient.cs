@@ -10,6 +10,19 @@ public sealed class ProductApiClient : IDisposable
 {
     private readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(20) };
 
+    public async Task<string> LoginWithBadgeAsync(string apiUrl, string badge, string password)
+    {
+        ConfigureAddress(apiUrl);
+        using var response = await _http.PostAsJsonAsync(
+            new Uri(new Uri(apiUrl.TrimEnd('/') + "/"), "api/staff-badges/login"),
+            new { badge = badge.Trim(), password });
+        var result = await response.Content.ReadFromJsonAsync<LoginResponse>();
+        if (!response.IsSuccessStatusCode || result?.Success != true ||
+            string.IsNullOrWhiteSpace(result.Token))
+            throw new InvalidOperationException("Badge sign-in failed.");
+        return result.Token;
+    }
+
     public async Task<StaffSession> GetSessionAsync(string apiUrl, string jwt)
     {
         Configure(apiUrl, jwt);
