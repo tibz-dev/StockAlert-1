@@ -18,6 +18,26 @@ public sealed class ProductApiClient : IDisposable
         return await response.Content.ReadFromJsonAsync<List<ProductRow>>() ?? new List<ProductRow>();
     }
 
+    public async Task<IReadOnlyList<SupplierRow>> GetSuppliersAsync(string apiUrl, string jwt)
+    {
+        Configure(apiUrl, jwt);
+        using var response = await _http.GetAsync(new Uri(
+            new Uri(apiUrl.TrimEnd('/') + "/"), "api/Suppliers"));
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<List<SupplierRow>>()
+            ?? new List<SupplierRow>();
+    }
+
+    public async Task<IReadOnlyList<CustomerRow>> GetCustomersAsync(string apiUrl, string jwt)
+    {
+        Configure(apiUrl, jwt);
+        using var response = await _http.GetAsync(new Uri(
+            new Uri(apiUrl.TrimEnd('/') + "/"), "api/Customers"));
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<List<CustomerRow>>()
+            ?? new List<CustomerRow>();
+    }
+
     public async Task<string> GetBarcodeSvgAsync(string apiUrl, string jwt, Guid id)
     {
         Configure(apiUrl, jwt);
