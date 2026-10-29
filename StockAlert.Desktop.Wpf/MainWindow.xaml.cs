@@ -15,6 +15,9 @@ public partial class MainWindow : Window
     private IReadOnlyList<ProductRow> _products = Array.Empty<ProductRow>();
     private Guid? _selectedStocktakeId;
     private ProductRow? _posProduct;
+    private readonly List<CheckoutCartLine> _cartLines = new();
+    private Guid _cartOperationId = Guid.NewGuid();
+    private bool _cartPosting;
 
     public MainWindow()
     {
@@ -351,6 +354,109 @@ public partial class MainWindow : Window
             QuotesStatus.Text = $"{quotes.Count} quotes loaded.";
         }
         catch (Exception ex) { QuotesStatus.Text = ex.Message; }
+    }
+
+    private void RenderCart()
+    {
+        CartGrid.ItemsSource = null;
+        CartGrid.ItemsSource = _cartLines.ToArray();
+        var estimate = _cartLines.Sum(x => x.LineTotal);
+        CartStatus.Text = $"{_cartLines.Sum(x => (long)x.Quantity)} units · estimated subtotal R {estimate:N2}. Preview required before checkout.";
+    }
+
+    private void CartAdd_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (_cartPosting) return;
+            var barcode = CartBarcodeBox.Text.Trim();
+            if (string.IsNullOrEmpty(barcode))
+                throw new ArgumentException("Scan or enter a barcode.");
+            if (!int.TryParse(CartQuantityBox.Text, out var quantity) || quantity <= 0)
+                throw new ArgumentException("Quantity must be a positive whole number.");
+            var matches = _products.Where(x => string.Equals(x.Barcode, barcode,
+                StringComparison.OrdinalIgnoreCase)).Take(2).ToArray();
+            if (matches.Length != 1)
+                throw new InvalidOperationException("Barcode must match exactly one loaded product. Sign in or refresh inventory.");
+            var product = matches[0];
+            var existing = _cartLines.FirstOrDefault(x => x.ProductId == product.Id);
+            int combined = checked((existing?.Quantity ?? 0) + quantity);
+            if (combined > product.AvailableQuantity)
+                throw new InvalidOperationException($"Only {product.AvailableQuantity} unreserved units available.");
+            if (existing != null) existing.Quantity = combined;
+            else _cartLines.Add(new CheckoutCartLine
+            {
+                ProductId = product.Id, ProductName = product.Name,
+                Barcode = product.Barcode, Quantity = quantity, UnitPrice = product.Price
+            });
+            _cartOperationId = Guid.NewGuid();
+            CartBarcodeBox.Clear();
+            CartQuantityBox.Text = "1";
+            RenderCart();
+            CartBarcodeBox.Focus();
+        }
+        catch (Exception ex) { CartStatus.Text = ex.Message; }
+    }
+
+    private void CartRemove_Click(object sender, RoutedEventArgs e)
+    {
+        if (_cartPosting) return;
+        if (CartGrid.SelectedItem is CheckoutCartLine selected)
+        {
+            _cartLines.Remove(selected);
+            _cartOperationId = Guid.NewGuid();
+            RenderCart();
+        }
+    }
+
+    private void CartClear_Click(object sender, RoutedEventArgs e)
+    {
+        if (_cartPosting) return;
+        _cartLines.Clear();
+        _cartOperationId = Guid.NewGuid();
+        RenderCart();
+    }
+
+    private async void CartPreview_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (_cartPosting) return;
+            if (_cartLines.Count == 0) throw new InvalidOperationException("Add products first.");
+            var preview = await _client.PreviewCheckoutAsync(ApiUrlBox.Text, AuthorizedToken(), _cartLines);
+            CartStatus.Text = $"Server preview: {preview.TotalUnits} units, subtotal R {preview.Subtotal:N2}. {preview.Note}";
+        }
+        catch (Exception ex) { CartStatus.Text = ex.Message; }
+    }
+
+    private async void CartCheckout_Click(object sender, RoutedEventArgs e)
+    {
+        if (_cartPosting) return;
+        try
+        {
+            if (_cartLines.Count == 0) throw new InvalidOperationException("Add products first.");
+            var token = AuthorizedToken();
+            var preview = await _client.PreviewCheckoutAsync(ApiUrlBox.Text, token, _cartLines);
+            if (MessageBox.Show(
+                $"Server-priced subtotal R {preview.Subtotal:N2} for {preview.TotalUnits} units.\\n\\nHave you physically received the full CASH payment? VAT may affect the final total.",
+                "Confirm Cash Received", MessageBoxButton.YesNo, MessageBoxImage.Warning)
+                != MessageBoxResult.Yes) return;
+
+            _cartPosting = true;
+            var receipt = await _client.CommitCashCheckoutAsync(ApiUrlBox.Text, token,
+                _cartLines, _cartOperationId);
+            CartStatus.Text = $"Checkout posted: {receipt.ReceiptNumber} · R {receipt.Total:N2} (cash).";
+            _cartLines.Clear();
+            _cartOperationId = Guid.NewGuid();
+            CartGrid.ItemsSource = null;
+            await RefreshAsync();
+        }
+        catch (Exception ex)
+        {
+            CartStatus.Text = $"Checkout not confirmed: {ex.Message} Retry the same cart only after checking whether the sale was posted.";
+            // Retain operation ID so the same cart can be retried idempotently.
+        }
+        finally { _cartPosting = false; }
     }
 
     private async void PosLookup_Click(object sender, RoutedEventArgs e)
