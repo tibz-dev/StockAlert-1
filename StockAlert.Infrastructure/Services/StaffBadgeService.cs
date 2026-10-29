@@ -22,6 +22,34 @@ public sealed class StaffBadgeService
         _auth = auth;
     }
 
+    public async Task<object[]> ListAsync(CancellationToken ct)
+    {
+        return await _db.StaffBadges.AsNoTracking()
+            .Include(x => x.User)
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .Select(x => new
+            {
+                x.Id,
+                x.UserId,
+                StaffName = x.User.FullName,
+                StaffEmail = x.User.Email,
+                x.IsRevoked,
+                x.CreatedAtUtc,
+                x.RevokedAtUtc
+            })
+            .Cast<object>()
+            .ToArrayAsync(ct);
+    }
+
+    public async Task<object[]> ListStaffAsync(CancellationToken ct)
+    {
+        return await _users.Users.AsNoTracking()
+            .OrderBy(x => x.FullName)
+            .Select(x => new { UserId = x.Id, x.FullName, x.Email })
+            .Cast<object>()
+            .ToArrayAsync(ct);
+    }
+
     private static string Hash(string badge) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(badge)));
 
