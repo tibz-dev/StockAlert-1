@@ -10,6 +10,16 @@ public sealed class ProductApiClient : IDisposable
 {
     private readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(20) };
 
+    public async Task<StaffSession> GetSessionAsync(string apiUrl, string jwt)
+    {
+        Configure(apiUrl, jwt);
+        using var response = await _http.GetAsync(
+            new Uri(new Uri(apiUrl.TrimEnd('/') + "/"), "api/Auth/me"));
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<StaffSession>()
+            ?? throw new InvalidOperationException("Could not retrieve the authenticated staff profile.");
+    }
+
     public async Task<IReadOnlyList<ProductRow>> GetProductsAsync(string apiUrl, string jwt)
     {
         Configure(apiUrl, jwt);
