@@ -73,7 +73,7 @@
                         <Button Content="Suppliers" Click="Suppliers_Click" Background="Transparent" Foreground="#94A3B8" HorizontalContentAlignment="Left" Margin="0,1" Padding="18,12"/>
                         <Button Content="Quotes" Click="Quotes_Click" Background="Transparent" Foreground="#94A3B8" HorizontalContentAlignment="Left" Margin="0,1" Padding="18,12"/>
                         <Button Content="Customers" Click="Customers_Click" Background="Transparent" Foreground="#94A3B8" HorizontalContentAlignment="Left" Margin="0,1" Padding="18,12"/>
-                        <TextBlock Style="{StaticResource SidebarText}" Text="Staff"/>
+                        <Button Content="Staff Badges" Click="StaffBadges_Click" Background="Transparent" Foreground="#94A3B8" HorizontalContentAlignment="Left" Margin="0,1" Padding="18,12"/>
                         <Button Content="Sales" Click="Sales_Click" Background="Transparent" Foreground="#94A3B8" HorizontalContentAlignment="Left" Margin="0,1" Padding="18,12"/>
                         <TextBlock Style="{StaticResource SidebarText}" Text="Reports"/>
                         <TextBlock Style="{StaticResource SidebarText}" Text="Business Settings"/>
@@ -392,6 +392,36 @@
                         <TextBlock x:Name="ConnectionStatusText" Text="HTTPS required, except localhost development." Foreground="#64748B" Margin="0,12,0,0" TextWrapping="Wrap"/>
                     </StackPanel>
                 </Border>
+            </StackPanel>
+        </ScrollViewer>
+        <ScrollViewer x:Name="StaffBadgesPage" Grid.Column="1" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="32">
+                <TextBlock Text="Staff security" Foreground="#2563EB" FontWeight="SemiBold"/>
+                <TextBlock Text="Staff Badge Management" FontSize="28" FontWeight="Bold" Margin="0,6,0,18"/>
+                <TextBlock Text="Owner and Manager only. Staff badges require a password to sign in." Foreground="#64748B" Margin="0,0,0,16"/>
+                <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10" Padding="16" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="Enrol a badge for a staff account" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                        <StackPanel Orientation="Horizontal">
+                            <ComboBox x:Name="BadgeStaffPicker" Width="330" DisplayMemberPath="Display" Margin="0,0,10,0"/>
+                            <Button Content="Enrol New Badge" Click="EnrolBadge_Click" Margin="0,0,10,0"/>
+                            <Button Content="Refresh" Click="StaffBadges_Click"/>
+                        </StackPanel>
+                        <TextBlock Text="New badge secrets are shown only once. Do not share them in chat, email or logs." Foreground="#64748B" Margin="0,12,0,0"/>
+                    </StackPanel>
+                </Border>
+                <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10" Padding="8">
+                    <DataGrid x:Name="BadgeAssignmentsGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MinHeight="280">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Staff" Binding="{Binding StaffName}" Width="2*"/>
+                            <DataGridTextColumn Header="Email" Binding="{Binding StaffEmail}" Width="2*"/>
+                            <DataGridCheckBoxColumn Header="Revoked" Binding="{Binding IsRevoked}" Width="*"/>
+                            <DataGridTextColumn Header="Enrolled" Binding="{Binding CreatedAtUtc, StringFormat=yyyy-MM-dd HH:mm}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+                <Button Content="Revoke Selected Badge" HorizontalAlignment="Left" Margin="0,14,0,0" Click="RevokeBadge_Click" Background="#B91C1C"/>
+                <TextBlock x:Name="BadgeAdminStatus" Text="Sign in as Owner or Manager to manage badges." Foreground="#64748B" Margin="0,12,0,0"/>
             </StackPanel>
         </ScrollViewer>
     </Grid>
