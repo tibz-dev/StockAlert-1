@@ -58,6 +58,29 @@ public sealed class ProductApiClient : IDisposable
             ?? new List<StocktakeSessionRow>();
     }
 
+    public async Task<StocktakeDetail> GetStocktakeAsync(string apiUrl, string jwt, Guid id)
+    {
+        Configure(apiUrl, jwt);
+        using var response = await _http.GetAsync(new Uri(
+            new Uri(apiUrl.TrimEnd('/') + "/"), $"api/stocktakes/{id}"));
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<StocktakeDetail>()
+            ?? throw new InvalidOperationException("Empty stocktake response.");
+    }
+
+    public async Task SubmitStocktakeCountAsync(string apiUrl, string jwt,
+        Guid sessionId, Guid itemId, int quantity, bool recount)
+    {
+        Configure(apiUrl, jwt);
+        var action = recount ? "recount" : "count";
+        using var response = await _http.PostAsJsonAsync(new Uri(
+            new Uri(apiUrl.TrimEnd('/') + "/"),
+            $"api/stocktakes/{sessionId}/items/{itemId}/{action}"),
+            new { quantity });
+        if (!response.IsSuccessStatusCode)
+            throw new HttpRequestException(await response.Content.ReadAsStringAsync());
+    }
+
     public async Task<string> GetBarcodeSvgAsync(string apiUrl, string jwt, Guid id)
     {
         Configure(apiUrl, jwt);
