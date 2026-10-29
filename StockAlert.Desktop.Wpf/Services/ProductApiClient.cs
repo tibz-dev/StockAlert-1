@@ -115,6 +115,24 @@ public sealed class ProductApiClient : IDisposable
             throw new HttpRequestException(await response.Content.ReadAsStringAsync());
     }
 
+    public async Task<IReadOnlyList<QuoteRow>> GetQuotesAsync(string apiUrl, string jwt)
+    {
+        Configure(apiUrl, jwt);
+        using var response = await _http.GetAsync(new Uri(
+            new Uri(apiUrl.TrimEnd('/') + "/"), "api/Quotes"));
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<List<QuoteRow>>() ?? new List<QuoteRow>();
+    }
+
+    public async Task<IReadOnlyList<SaleRow>> GetSalesAsync(string apiUrl, string jwt)
+    {
+        Configure(apiUrl, jwt);
+        using var response = await _http.GetAsync(new Uri(
+            new Uri(apiUrl.TrimEnd('/') + "/"), "api/Sales"));
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<List<SaleRow>>() ?? new List<SaleRow>();
+    }
+
     public async Task<string> GetBarcodeSvgAsync(string apiUrl, string jwt, Guid id)
     {
         Configure(apiUrl, jwt);
