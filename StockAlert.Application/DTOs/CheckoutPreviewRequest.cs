@@ -16,6 +16,8 @@ public record CheckoutPreviewLineDto(
 public record CheckoutPreviewDto(
     List<CheckoutPreviewLineDto> Items,
     decimal Subtotal,
+    decimal VatAmount,
+    decimal Total,
     long TotalUnits,
     DateTime PricedAtUtc,
     string Note);
