@@ -13,6 +13,7 @@ public partial class MainWindow : Window
     private readonly ProductApiClient _client = new();
     private string? _sessionToken;
     private IReadOnlyList<ProductRow> _products = Array.Empty<ProductRow>();
+    private Guid? _selectedStocktakeId;
 
     public MainWindow()
     {
@@ -110,6 +111,77 @@ public partial class MainWindow : Window
             var sessions = await _client.GetStocktakesAsync(ApiUrlBox.Text, _sessionToken);
             StocktakesGrid.ItemsSource = sessions;
             StocktakesStatus.Text = $"{sessions.Count} stocktake sessions loaded.";
+        }
+        catch (Exception ex) { StocktakesStatus.Text = ex.Message; }
+    }
+
+    private async void OpenStocktake_Click(object sender, RoutedEventArgs e)
+    {
+        if (StocktakesGrid.SelectedItem is not StocktakeSessionRow selected)
+        {
+            StocktakesStatus.Text = "Select a stocktake session first.";
+            return;
+        }
+        try
+        {
+            if (string.IsNullOrWhiteSpace(_sessionToken))
+                throw new InvalidOperationException("Sign in first.");
+            _selectedStocktakeId = selected.Id;
+            await ReloadStocktakeItemsAsync();
+        }
+        catch (Exception ex) { StocktakesStatus.Text = ex.Message; }
+    }
+
+    private async Task ReloadStocktakeItemsAsync()
+    {
+        if (!_selectedStocktakeId.HasValue || string.IsNullOrWhiteSpace(_sessionToken))
+            throw new InvalidOperationException("Open a stocktake and sign in first.");
+        var detail = await _client.GetStocktakeAsync(ApiUrlBox.Text, _sessionToken, _selectedStocktakeId.Value);
+        StocktakeItemsGrid.ItemsSource = detail.Items;
+        StocktakesStatus.Text = $"Stocktake: {detail.Title} ({detail.Items.Count} items).";
+    }
+
+    private async void SubmitStocktakeCount_Click(object sender, RoutedEventArgs e) =>
+        await SubmitSelectedCountAsync(false);
+
+    private async void SubmitStocktakeRecount_Click(object sender, RoutedEventArgs e) =>
+        await SubmitSelectedCountAsync(true);
+
+    private async Task SubmitSelectedCountAsync(bool recount)
+    {
+        try
+        {
+            if (!_selectedStocktakeId.HasValue || string.IsNullOrWhiteSpace(_sessionToken))
+                throw new InvalidOperationException("Open a stocktake and sign in first.");
+            if (!int.TryParse(StocktakeQuantityBox.Text, out var quantity) || quantity < 0)
+                throw new ArgumentException("Count must be a non-negative whole number.");
+
+            var selectedItem = StocktakeItemsGrid.SelectedItem as StocktakeItemRow;
+            var scanned = StocktakeBarcodeBox.Text.Trim();
+            var items = StocktakeItemsGrid.ItemsSource as IEnumerable<StocktakeItemRow>;
+            StocktakeItemRow? item;
+            if (scanned.Length > 0)
+            {
+                var matches = items?.Where(i => string.Equals(
+                    i.Barcode, scanned, StringComparison.OrdinalIgnoreCase)).Take(2).ToArray();
+                if (matches == null || matches.Length != 1)
+                    throw new InvalidOperationException("Barcode must match exactly one item in this stocktake.");
+                item = matches[0];
+            }
+            else
+            {
+                item = selectedItem;
+            }
+
+            if (item == null)
+                throw new InvalidOperationException("Select a stocktake item or scan its barcode.");
+
+            await _client.SubmitStocktakeCountAsync(ApiUrlBox.Text, _sessionToken,
+                _selectedStocktakeId.Value, item.Id, quantity, recount);
+            await ReloadStocktakeItemsAsync();
+            StocktakesStatus.Text = recount ? "Recount recorded." : "Count recorded.";
+            StocktakeBarcodeBox.Clear();
+            StocktakeQuantityBox.Clear();
         }
         catch (Exception ex) { StocktakesStatus.Text = ex.Message; }
     }
