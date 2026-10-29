@@ -101,6 +101,32 @@ public partial class MainWindow : Window
         StockMovementsGrid.ItemsSource = null;
     }
 
+    private async void BadgeLogin_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            SignOutSession();
+            var badge = BadgeLoginBox.Text.Trim();
+            var password = LoginPasswordBox.Password;
+            if (string.IsNullOrWhiteSpace(badge) || string.IsNullOrWhiteSpace(password))
+                throw new InvalidOperationException("Scan an enrolled staff badge and enter your password.");
+            _sessionToken = await _client.LoginWithBadgeAsync(ApiUrlBox.Text, badge, password);
+            _staff = await _client.GetSessionAsync(ApiUrlBox.Text, _sessionToken);
+            SignedInStaffText.Text = $"{_staff.Name ?? _staff.Email} ({string.Join(", ", _staff.Roles)})";
+            BadgeLoginBox.Clear();
+            LoginPasswordBox.Clear();
+            LoginStatusText.Text = "Signed in with staff badge and password.";
+            ShowPage(DashboardPage);
+            await RefreshAsync();
+        }
+        catch (Exception ex)
+        {
+            SignOutSession();
+            ShowPage(LoginPage);
+            LoginStatusText.Text = ex.Message;
+        }
+    }
+
     private void Dashboard_Click(object sender, RoutedEventArgs e)
     {
         ShowPage(DashboardPage);
