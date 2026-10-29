@@ -22,6 +22,7 @@ public sealed class CheckoutController : ControllerBase
         _business = business;
     }
 
+    [Authorize(Roles = "Owner,Manager,Sales")]
     [HttpPost("cash")]
     public async Task<IActionResult> CommitCash(
         [FromBody] CommitCheckoutRequest request, CancellationToken cancellationToken)
