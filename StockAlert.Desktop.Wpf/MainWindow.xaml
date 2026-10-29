@@ -60,9 +60,9 @@
                 </Border>
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="12,4">
-                        <TextBlock Style="{StaticResource SidebarText}" Text="Dashboard"/>
+                        <Button Content="Dashboard" Click="Dashboard_Click" Background="Transparent" Foreground="#94A3B8" HorizontalContentAlignment="Left" Margin="0,1" Padding="18,12"/>
                         <Border Background="#2563EB" CornerRadius="7" Margin="0,1">
-                            <TextBlock Text="Inventory" FontSize="14" FontWeight="SemiBold" Foreground="White" Margin="18,12"/>
+                            <Button Content="Inventory" Click="Inventory_Click" Background="Transparent" Foreground="White" HorizontalContentAlignment="Left" Margin="0" Padding="18,12"/>
                         </Border>
                         <TextBlock Style="{StaticResource SidebarText}" Text="Stock Movements"/>
                         <TextBlock Style="{StaticResource SidebarText}" Text="Stocktakes"/>
@@ -79,7 +79,7 @@
                 </ScrollViewer>
             </DockPanel>
         </Border>
-        <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+        <ScrollViewer x:Name="InventoryPage" Grid.Column="1" VerticalScrollBarVisibility="Auto">
             <Grid Margin="32">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -141,6 +141,29 @@
                 </Border>
                 <TextBlock Grid.Row="4" x:Name="StatusText" Foreground="#64748B" Margin="3,14,0,0" Text="Connect to the API to load inventory."/>
             </Grid>
+        </ScrollViewer>
+        <ScrollViewer x:Name="DashboardPage" Grid.Column="1" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+            <StackPanel Margin="32">
+                <TextBlock Text="Overview" Foreground="#2563EB" FontWeight="SemiBold" FontSize="13"/>
+                <TextBlock Text="Dashboard" FontSize="28" FontWeight="Bold" Foreground="#111827" Margin="0,4,0,16"/>
+                <TextBlock Text="Live inventory summary from the existing StockAlert API" Foreground="#64748B" Margin="0,0,0,20"/>
+                <UniformGrid Columns="2">
+                    <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10" Padding="22" Margin="0,0,8,12">
+                        <StackPanel><TextBlock Text="Total products" Foreground="#64748B"/><TextBlock x:Name="TotalProductsText" FontSize="29" FontWeight="Bold" Foreground="#111827"/></StackPanel>
+                    </Border>
+                    <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10" Padding="22" Margin="8,0,0,12">
+                        <StackPanel><TextBlock Text="Low-stock items (below 5)" Foreground="#64748B"/><TextBlock x:Name="LowStockText" FontSize="29" FontWeight="Bold" Foreground="#B45309"/></StackPanel>
+                    </Border>
+                    <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10" Padding="22" Margin="0,0,8,12">
+                        <StackPanel><TextBlock Text="Units on hand" Foreground="#64748B"/><TextBlock x:Name="OnHandText" FontSize="29" FontWeight="Bold" Foreground="#111827"/></StackPanel>
+                    </Border>
+                    <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10" Padding="22" Margin="8,0,0,12">
+                        <StackPanel><TextBlock Text="Available units" Foreground="#64748B"/><TextBlock x:Name="AvailableText" FontSize="29" FontWeight="Bold" Foreground="#111827"/></StackPanel>
+                    </Border>
+                </UniformGrid>
+                <TextBlock Text="For revenue and accounting figures, use the dedicated reporting API; product selling prices are not inventory cost values." Foreground="#64748B" TextWrapping="Wrap" Margin="0,10"/>
+                <Button Content="Open Inventory" Width="160" HorizontalAlignment="Left" Click="Inventory_Click" Margin="0,20,0,0"/>
+            </StackPanel>
         </ScrollViewer>
     </Grid>
 </Window>
