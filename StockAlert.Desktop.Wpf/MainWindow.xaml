@@ -1,51 +1,428 @@
 <Window x:Class="StockAlert.Desktop.Wpf.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="StockAlert Desktop | Inventory" Width="1200" Height="760" MinWidth="850" MinHeight="540"
-        Background="#F4F6F9" FontFamily="Segoe UI">
-    <Grid Margin="24">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/><RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
-        <StackPanel Grid.Row="0" Margin="0,0,0,18">
-            <TextBlock Text="StockAlert / Inventory" FontSize="28" FontWeight="Bold" Foreground="#192639"/>
-            <TextBlock Text="Manage products, search scanned barcodes, and print Code 128 labels" Foreground="#66758A"/>
-        </StackPanel>
-        <Border Grid.Row="1" Background="White" CornerRadius="8" Padding="14" Margin="0,0,0,14">
-            <Grid>
-                <Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="3*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                <StackPanel Grid.Column="0" Margin="0,0,14,0">
-                    <TextBlock Text="API base URL" Foreground="#66758A"/>
-                    <TextBox x:Name="ApiUrlBox" Text="https://localhost:7001" Padding="8" Margin="0,4,0,0"/>
-                </StackPanel>
-                <StackPanel Grid.Column="1" Margin="0,0,14,0">
-                    <TextBlock Text="Bearer token (session only)" Foreground="#66758A"/>
-                    <PasswordBox x:Name="TokenBox" Padding="8" Margin="0,4,0,0"/>
-                </StackPanel>
-                <Button Grid.Column="2" Content="Load products" Padding="18,9" VerticalAlignment="Bottom" Click="LoadProducts_Click"/>
-            </Grid>
-        </Border>
-        <Border Grid.Row="2" Background="White" CornerRadius="8" Padding="14" Margin="0,0,0,14">
+        Title="StockAlert Desktop | Inventory" Width="1360" Height="840"
+        MinWidth="980" MinHeight="650" Background="#F9FAFB" FontFamily="Segoe UI">
+    <Window.Resources>
+        <Style x:Key="SidebarText" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#94A3B8"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Margin" Value="18,8"/>
+        </Style>
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#64748B"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Padding" Value="11,9"/>
+            <Setter Property="BorderBrush" Value="#CBD5E1"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="White"/>
+        </Style>
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="18,10"/>
+            <Setter Property="Background" Value="#2563EB"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style TargetType="DataGrid">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="RowHeight" Value="43"/>
+            <Setter Property="ColumnHeaderHeight" Value="46"/>
+            <Setter Property="HeadersVisibility" Value="Column"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="#E5E7EB"/>
+            <Setter Property="VerticalGridLinesBrush" Value="Transparent"/>
+        </Style>
+    </Window.Resources>
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="256"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <Border Grid.Column="0" Background="#0F172A">
             <DockPanel>
-                <Button DockPanel.Dock="Right" Content="Print selected label" Padding="16,8" Margin="12,0,0,0" Click="PrintLabel_Click"/>
-                <TextBox x:Name="SearchBox" Padding="9" VerticalContentAlignment="Center" ToolTip="Enter a barcode or product name, then press Enter" KeyDown="SearchBox_KeyDown" TextChanged="SearchBox_TextChanged"/>
+                <Border DockPanel.Dock="Top" Padding="24,24,14,18">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="StockAlert" FontSize="24" FontWeight="Bold" Foreground="#60A5FA"/>
+                            <Border Margin="9,6,0,0" Padding="7,2" Background="#1E3A8A" CornerRadius="4">
+                                <TextBlock Text="DESKTOP" Foreground="#BFDBFE" FontSize="10" FontWeight="Bold"/>
+                            </Border>
+                        </StackPanel>
+                        <TextBlock Text="Inventory control &amp; reconciliation" Foreground="#64748B" FontSize="11" Margin="0,8,0,0"/>
+                    </StackPanel>
+                </Border>
+                <Border DockPanel.Dock="Bottom" BorderBrush="#1E293B" BorderThickness="0,1,0,0" Padding="18">
+                    <TextBlock Text="More modules coming to desktop" Foreground="#64748B" FontSize="11" TextWrapping="Wrap"/>
+                </Border>
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="12,4">
+                        <Button Content="Login" Click="ShowLogin_Click" Background="Transparent" Foreground="#94A3B8" HorizontalContentAlignment="Left" Padding="18,12"/>
+                        <Button Content="API Connection" Click="ShowConnection_Click" Background="Transparent" Foreground="#94A3B8" HorizontalContentAlignment="Left" Padding="18,12"/>
+                        <TextBlock x:Name="SignedInStaffText" Style="{StaticResource SidebarText}" Text="Not signed in" TextWrapping="Wrap"/>
+                        <Button Content="Sign Out" Click="SignOut_Click" Background="Transparent" Foreground="#FCA5A5" HorizontalContentAlignment="Left" Padding="18,12"/>
+                        <Button Content="Dashboard" Click="Dashboard_Click" Background="Transparent" Foreground="#94A3B8" HorizontalContentAlignment="Left" Margin="0,1" Padding="18,12"/>
+                        <Border Background="#2563EB" CornerRadius="7" Margin="0,1">
+                            <Button Content="Inventory" Click="Inventory_Click" Background="Transparent" Foreground="White" HorizontalContentAlignment="Left" Margin="0" Padding="18,12"/>
+                        </Border>
+                        <Button Content="Stock Movements" Click="StockMovements_Click" Background="Transparent" Foreground="#94A3B8" HorizontalContentAlignment="Left" Margin="0,1" Padding="18,12"/>
+                        <Button Content="Stocktakes" Click="Stocktakes_Click" Background="Transparent" Foreground="#94A3B8" HorizontalContentAlignment="Left" Margin="0,1" Padding="18,12"/>
+                        <Button Content="Suppliers" Click="Suppliers_Click" Background="Transparent" Foreground="#94A3B8" HorizontalContentAlignment="Left" Margin="0,1" Padding="18,12"/>
+                        <Button Content="Quotes" Click="Quotes_Click" Background="Transparent" Foreground="#94A3B8" HorizontalContentAlignment="Left" Margin="0,1" Padding="18,12"/>
+                        <Button Content="Customers" Click="Customers_Click" Background="Transparent" Foreground="#94A3B8" HorizontalContentAlignment="Left" Margin="0,1" Padding="18,12"/>
+                        <Button Content="Staff Badges" Click="StaffBadges_Click" Background="Transparent" Foreground="#94A3B8" HorizontalContentAlignment="Left" Margin="0,1" Padding="18,12"/>
+                        <Button Content="Sales" Click="Sales_Click" Background="Transparent" Foreground="#94A3B8" HorizontalContentAlignment="Left" Margin="0,1" Padding="18,12"/>
+                        <TextBlock Style="{StaticResource SidebarText}" Text="Reports"/>
+                        <TextBlock Style="{StaticResource SidebarText}" Text="Business Settings"/>
+                        <TextBlock Style="{StaticResource SidebarText}" Text="Audit Logs"/>
+                        <TextBlock Style="{StaticResource SidebarText}" Text="Offline Queue"/>
+                    </StackPanel>
+                </ScrollViewer>
             </DockPanel>
         </Border>
-        <Border Grid.Row="3" Background="White" CornerRadius="8" Padding="8">
-            <DataGrid x:Name="ProductsGrid" AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single"
-                      GridLinesVisibility="Horizontal" CanUserAddRows="False" HeadersVisibility="Column">
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="Product" Binding="{Binding Name}" Width="2*"/>
-                    <DataGridTextColumn Header="Barcode" Binding="{Binding Barcode}" Width="1.5*"/>
-                    <DataGridTextColumn Header="Category" Binding="{Binding CategoryName}" Width="*"/>
-                    <DataGridTextColumn Header="Price (R)" Binding="{Binding Price, StringFormat=N2}" Width="*"/>
-                    <DataGridTextColumn Header="On hand" Binding="{Binding StockQuantity}" Width="*"/>
-                    <DataGridTextColumn Header="Available" Binding="{Binding AvailableQuantity}" Width="*"/>
-                </DataGrid.Columns>
-            </DataGrid>
-        </Border>
-        <TextBlock Grid.Row="4" x:Name="StatusText" Foreground="#66758A" Margin="3,12,0,0" Text="Connect to the StockAlert API to load inventory."/>
+        <ScrollViewer x:Name="InventoryPage" Grid.Column="1" VerticalScrollBarVisibility="Auto">
+            <Grid Margin="32">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <DockPanel Grid.Row="0" Margin="0,0,0,22">
+                    <StackPanel>
+                        <TextBlock Text="Inventory management" Foreground="#2563EB" FontSize="13" FontWeight="SemiBold"/>
+                        <TextBlock Text="Stock Inventory" FontSize="28" FontWeight="Bold" Foreground="#111827" Margin="0,4,0,0"/>
+                        <TextBlock Text="Manage products, scan barcodes and print labels" Foreground="#6B7280" Margin="0,5,0,0"/>
+                    </StackPanel>
+                </DockPanel>
+                <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,16">
+                    <TextBlock Text="Signed-in staff only. Use the Login tab to change accounts." VerticalAlignment="Center" Foreground="#64748B" Margin="0,0,16,0"/>
+                    <Button Content="Refresh Inventory" Click="LoadProducts_Click"/>
+                </StackPanel>
+                <Border Grid.Row="2" Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="11" Padding="16" Margin="0,0,0,18">
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="Print Barcode Label" Margin="12,0,0,0" Click="PrintLabel_Click"/>
+                        <Button DockPanel.Dock="Right" Content="Edit Product" Margin="12,0,0,0" Click="EditProduct_Click"/>
+                        <Button DockPanel.Dock="Right" Content="Add Product" Margin="12,0,0,0" Click="AddProduct_Click"/>
+                        <TextBox x:Name="SearchBox" VerticalContentAlignment="Center" ToolTip="Search name, category, supplier or scan barcode" KeyDown="SearchBox_KeyDown" TextChanged="SearchBox_TextChanged"/>
+                    </DockPanel>
+                </Border>
+                <Border Grid.Row="3" Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="11" Padding="6" MinHeight="300">
+                    <DataGrid x:Name="ProductsGrid" AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single" CanUserAddRows="False">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Product" Binding="{Binding Name}" Width="2*"/>
+                            <DataGridTextColumn Header="Barcode" Binding="{Binding Barcode}" Width="1.5*"/>
+                            <DataGridTextColumn Header="Category" Binding="{Binding CategoryName}" Width="*"/>
+                            <DataGridTextColumn Header="Supplier" Binding="{Binding SupplierName}" Width="*"/>
+                            <DataGridTextColumn Header="Price (R)" Binding="{Binding Price, StringFormat=N2}" Width="*"/>
+                            <DataGridTextColumn Header="On hand" Binding="{Binding StockQuantity}" Width="*"/>
+                            <DataGridTextColumn Header="Available" Binding="{Binding AvailableQuantity}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+                <TextBlock Grid.Row="4" x:Name="StatusText" Foreground="#64748B" Margin="3,14,0,0" Text="Connect to the API to load inventory."/>
+            </Grid>
+        </ScrollViewer>
+        <ScrollViewer x:Name="DashboardPage" Grid.Column="1" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+            <StackPanel Margin="32">
+                <TextBlock Text="Overview" Foreground="#2563EB" FontWeight="SemiBold" FontSize="13"/>
+                <TextBlock Text="Dashboard" FontSize="28" FontWeight="Bold" Foreground="#111827" Margin="0,4,0,16"/>
+                <TextBlock Text="Live inventory summary from the existing StockAlert API" Foreground="#64748B" Margin="0,0,0,20"/>
+                <UniformGrid Columns="2">
+                    <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10" Padding="22" Margin="0,0,8,12">
+                        <StackPanel><TextBlock Text="Total products" Foreground="#64748B"/><TextBlock x:Name="TotalProductsText" FontSize="29" FontWeight="Bold" Foreground="#111827"/></StackPanel>
+                    </Border>
+                    <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10" Padding="22" Margin="8,0,0,12">
+                        <StackPanel><TextBlock Text="Low-stock items (below 5)" Foreground="#64748B"/><TextBlock x:Name="LowStockText" FontSize="29" FontWeight="Bold" Foreground="#B45309"/></StackPanel>
+                    </Border>
+                    <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10" Padding="22" Margin="0,0,8,12">
+                        <StackPanel><TextBlock Text="Units on hand" Foreground="#64748B"/><TextBlock x:Name="OnHandText" FontSize="29" FontWeight="Bold" Foreground="#111827"/></StackPanel>
+                    </Border>
+                    <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10" Padding="22" Margin="8,0,0,12">
+                        <StackPanel><TextBlock Text="Available units" Foreground="#64748B"/><TextBlock x:Name="AvailableText" FontSize="29" FontWeight="Bold" Foreground="#111827"/></StackPanel>
+                    </Border>
+                </UniformGrid>
+                <TextBlock Text="For revenue and accounting figures, use the dedicated reporting API; product selling prices are not inventory cost values." Foreground="#64748B" TextWrapping="Wrap" Margin="0,10"/>
+                <Button Content="Open Inventory" Width="160" HorizontalAlignment="Left" Click="Inventory_Click" Margin="0,20,0,0"/>
+            </StackPanel>
+        </ScrollViewer>
+        <ScrollViewer x:Name="SuppliersPage" Grid.Column="1" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="32">
+                <TextBlock Text="Supplier management" Foreground="#2563EB" FontWeight="SemiBold"/>
+                <TextBlock Text="Suppliers" FontSize="28" FontWeight="Bold" Foreground="#111827" Margin="0,6,0,20"/>
+                <Button Content="Refresh Suppliers" HorizontalAlignment="Left" Click="Suppliers_Click" Margin="0,0,0,16"/>
+                <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10" Padding="8">
+                    <DataGrid x:Name="SuppliersGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MinHeight="300">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Company" Binding="{Binding CompanyName}" Width="2*"/>
+                            <DataGridTextColumn Header="Email" Binding="{Binding ContactEmail}" Width="2*"/>
+                            <DataGridTextColumn Header="Products" Binding="{Binding ProductCount}" Width="*"/>
+                            <DataGridTextColumn Header="Low Stock" Binding="{Binding LowStockProductCount}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+                <TextBlock x:Name="SuppliersStatus" Text="Sign in to load suppliers." Foreground="#64748B" Margin="0,12"/>
+            </StackPanel>
+        </ScrollViewer>
+        <ScrollViewer x:Name="CustomersPage" Grid.Column="1" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="32">
+                <TextBlock Text="Customer management" Foreground="#2563EB" FontWeight="SemiBold"/>
+                <TextBlock Text="Customers" FontSize="28" FontWeight="Bold" Foreground="#111827" Margin="0,6,0,20"/>
+                <Button Content="Refresh Customers" HorizontalAlignment="Left" Click="Customers_Click" Margin="0,0,0,16"/>
+                <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10" Padding="8">
+                    <DataGrid x:Name="CustomersGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MinHeight="300">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Name" Binding="{Binding FullName}" Width="2*"/>
+                            <DataGridTextColumn Header="Company" Binding="{Binding CompanyName}" Width="*"/>
+                            <DataGridTextColumn Header="Email" Binding="{Binding Email}" Width="2*"/>
+                            <DataGridTextColumn Header="Phone" Binding="{Binding PhoneNumber}" Width="*"/>
+                            <DataGridTextColumn Header="WhatsApp" Binding="{Binding WhatsAppNumber}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+                <TextBlock x:Name="CustomersStatus" Text="Sign in to load customers." Foreground="#64748B" Margin="0,12"/>
+            </StackPanel>
+        </ScrollViewer>
+        <ScrollViewer x:Name="StockMovementsPage" Grid.Column="1" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="32">
+                <TextBlock Text="Inventory audit" Foreground="#2563EB" FontWeight="SemiBold"/>
+                <TextBlock Text="Stock Movements" FontSize="28" FontWeight="Bold" Margin="0,6,0,20"/>
+                <Button Content="Refresh Movements" HorizontalAlignment="Left" Click="StockMovements_Click" Margin="0,0,0,16"/>
+                <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10" Padding="8">
+                    <DataGrid x:Name="StockMovementsGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MinHeight="300">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Date" Binding="{Binding CreatedAt, StringFormat=yyyy-MM-dd HH:mm}" Width="*"/>
+                            <DataGridTextColumn Header="Product" Binding="{Binding ProductName}" Width="2*"/>
+                            <DataGridTextColumn Header="Previous" Binding="{Binding PreviousQuantity}" Width="*"/>
+                            <DataGridTextColumn Header="Change" Binding="{Binding QuantityChange}" Width="*"/>
+                            <DataGridTextColumn Header="New" Binding="{Binding NewQuantity}" Width="*"/>
+                            <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" Width="2*"/>
+                            <DataGridTextColumn Header="By" Binding="{Binding PerformedBy}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+                <TextBlock x:Name="StockMovementsStatus" Text="Sign in to load movements." Foreground="#64748B" Margin="0,12"/>
+            </StackPanel>
+        </ScrollViewer>
+        <ScrollViewer x:Name="StocktakesPage" Grid.Column="1" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="32">
+                <TextBlock Text="Inventory reconciliation" Foreground="#2563EB" FontWeight="SemiBold"/>
+                <TextBlock Text="Stocktakes" FontSize="28" FontWeight="Bold" Margin="0,6,0,20"/>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                    <TextBox x:Name="NewStocktakeTitleBox" Width="190" ToolTip="New stocktake title"/>
+                    <TextBox x:Name="NewStocktakeLocationBox" Width="140" Margin="8,0" ToolTip="Location (optional)"/>
+                    <Button Content="Create Stocktake" Click="CreateStocktake_Click" Margin="0,0,8,0"/>
+                    <Button Content="Refresh Stocktakes" Click="Stocktakes_Click"/>
+                </StackPanel>
+                <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10" Padding="8">
+                    <DataGrid x:Name="StocktakesGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MinHeight="300">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Reference" Binding="{Binding ReferenceNumber}" Width="*"/>
+                            <DataGridTextColumn Header="Title" Binding="{Binding Title}" Width="2*"/>
+                            <DataGridTextColumn Header="Location" Binding="{Binding Location}" Width="*"/>
+                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="*"/>
+                            <DataGridTextColumn Header="Items" Binding="{Binding TotalItems}" Width="*"/>
+                            <DataGridTextColumn Header="Counted" Binding="{Binding CountedItems}" Width="*"/>
+                            <DataGridTextColumn Header="Variances" Binding="{Binding VarianceItems}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+                <TextBlock Text="Selected stocktake items" FontSize="19" FontWeight="SemiBold" Foreground="#111827" Margin="0,20,0,8"/>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                    <Button Content="Open Selected Stocktake" Click="OpenStocktake_Click" Margin="0,0,10,0"/>
+                    <TextBox x:Name="StocktakeBarcodeBox" Width="200" ToolTip="Scan or type the item's barcode"/>
+                    <TextBox x:Name="StocktakeQuantityBox" Width="80" Margin="8,0" ToolTip="Counted quantity"/>
+                    <Button Content="Submit Count" Click="SubmitStocktakeCount_Click" Margin="0,0,8,0"/>
+                    <Button Content="Submit Recount" Click="SubmitStocktakeRecount_Click"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,10,0,10">
+                    <TextBox x:Name="StocktakeResolutionReasonBox" Width="300" ToolTip="Reason for variance resolution"/>
+                    <Button Content="Resolve Selected Item" Click="ResolveStocktake_Click" Margin="8,0,8,0"/>
+                    <Button Content="Complete Stocktake" Click="CompleteStocktake_Click"/>
+                </StackPanel>
+                <DataGrid x:Name="StocktakeItemsGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MinHeight="220">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Product" Binding="{Binding ProductName}" Width="2*"/>
+                        <DataGridTextColumn Header="Barcode" Binding="{Binding Barcode}" Width="*"/>
+                        <DataGridTextColumn Header="First Count" Binding="{Binding FirstCount}" Width="*"/>
+                        <DataGridTextColumn Header="Recount" Binding="{Binding SecondCount}" Width="*"/>
+                        <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+                <TextBlock x:Name="StocktakesStatus" Text="Sign in to load stocktakes." Foreground="#64748B" Margin="0,12"/>
+            </StackPanel>
+        </ScrollViewer>
+        <ScrollViewer x:Name="QuotesPage" Grid.Column="1" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="32">
+                <TextBlock Text="Sales management" Foreground="#2563EB" FontWeight="SemiBold"/>
+                <TextBlock Text="Quotes" FontSize="28" FontWeight="Bold" Margin="0,6,0,20"/>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                    <Button Content="Refresh Quotes" Click="Quotes_Click" Margin="0,0,8,0"/>
+                    <Button Content="Create Quote" Click="CreateQuote_Click" Margin="0,0,8,0"/>
+                    <ComboBox x:Name="QuoteStatusCombo" Width="150" SelectedIndex="0" Margin="0,0,8,0">
+                        <ComboBoxItem Content="Draft"/><ComboBoxItem Content="Sent"/>
+                        <ComboBoxItem Content="Accepted"/><ComboBoxItem Content="Rejected"/>
+                        <ComboBoxItem Content="Expired"/><ComboBoxItem Content="Cancelled"/>
+                    </ComboBox>
+                    <Button Content="Set Status" Click="UpdateQuoteStatus_Click" Margin="0,0,8,0"/>
+                    <Button Content="Convert to Sale" Click="ConvertQuote_Click"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                    <TextBlock Text="Payment (R):" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBox x:Name="QuotePaymentAmountBox" Width="95" Margin="0,0,8,0"/>
+                    <ComboBox x:Name="QuotePaymentMethodCombo" Width="115" SelectedIndex="0" Margin="0,0,8,0">
+                        <ComboBoxItem Content="Cash"/><ComboBoxItem Content="Card"/><ComboBoxItem Content="EFT"/>
+                    </ComboBox>
+                    <TextBox x:Name="QuotePaymentReferenceBox" Width="145" ToolTip="Payment reference (optional)" Margin="0,0,8,0"/>
+                    <Button Content="Record Payment" Click="RecordQuotePayment_Click"/>
+                </StackPanel>
+                <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10" Padding="8">
+                    <DataGrid x:Name="QuotesGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MinHeight="320">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Number" Binding="{Binding QuoteNumber}" Width="*"/>
+                            <DataGridTextColumn Header="Customer" Binding="{Binding CustomerName}" Width="2*"/>
+                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="*"/>
+                            <DataGridTextColumn Header="Total (R)" Binding="{Binding Total, StringFormat=N2}" Width="*"/>
+                            <DataGridTextColumn Header="Paid (R)" Binding="{Binding AmountPaid, StringFormat=N2}" Width="*"/>
+                            <DataGridTextColumn Header="Balance (R)" Binding="{Binding BalanceDue, StringFormat=N2}" Width="*"/>
+                            <DataGridTextColumn Header="Valid Until" Binding="{Binding ValidUntil, StringFormat=yyyy-MM-dd}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+                <TextBlock x:Name="QuotesStatus" Foreground="#64748B" Margin="0,12" Text="Sign in to load quotes."/>
+            </StackPanel>
+        </ScrollViewer>
+        <ScrollViewer x:Name="SalesPage" Grid.Column="1" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="32">
+                <TextBlock Text="Sales management" Foreground="#2563EB" FontWeight="SemiBold"/>
+                <TextBlock Text="Sales History" FontSize="28" FontWeight="Bold" Margin="0,6,0,20"/>
+                <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10" Padding="16" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="Quick Sale — Single Item" FontWeight="Bold" FontSize="18" Margin="0,0,0,4"/>
+                        <TextBlock Text="The existing sales API records one product per transaction. Multi-item checkout and payment processing are not yet supported." Foreground="#64748B" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBox x:Name="PosBarcodeBox" Width="210" ToolTip="Scan an exact product barcode"/>
+                            <TextBox x:Name="PosQuantityBox" Text="1" Width="65" Margin="8,0" ToolTip="Quantity"/>
+                            <TextBox x:Name="PosCustomerBox" Width="180" Margin="0,0,8,0" ToolTip="Customer name (optional)"/>
+                            <Button Content="Find Item" Click="PosLookup_Click" Margin="0,0,8,0"/>
+                            <Button Content="Record Sale" Click="PosSale_Click"/>
+                        </StackPanel>
+                        <TextBlock x:Name="PosPreviewText" Text="Enter or scan a barcode, then select Find Item." Foreground="#64748B" Margin="0,12,0,0"/>
+                    </StackPanel>
+                </Border>
+                <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10" Padding="16" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="Multi-item Cash Checkout" FontSize="20" FontWeight="Bold" Foreground="#111827" Margin="0,0,0,6"/>
+                        <TextBlock Text="Scan products into a cart, preview server pricing and confirm cash received. Card and EFT are not supported here." TextWrapping="Wrap" Foreground="#64748B" Margin="0,0,0,12"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                            <TextBox x:Name="CartBarcodeBox" Width="215" ToolTip="Product barcode"/>
+                            <TextBox x:Name="CartQuantityBox" Text="1" Width="65" Margin="8,0" ToolTip="Quantity"/>
+                            <Button Content="Add to Cart" Click="CartAdd_Click" Margin="0,0,8,0"/>
+                            <Button Content="Remove Selected" Click="CartRemove_Click" Margin="0,0,8,0"/>
+                            <Button Content="Clear Cart" Click="CartClear_Click"/>
+                        </StackPanel>
+                        <DataGrid x:Name="CartGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" Height="220">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Product" Binding="{Binding ProductName}" Width="2*"/>
+                                <DataGridTextColumn Header="Barcode" Binding="{Binding Barcode}" Width="*"/>
+                                <DataGridTextColumn Header="Qty" Binding="{Binding Quantity}" Width="*"/>
+                                <DataGridTextColumn Header="Unit Price (R)" Binding="{Binding UnitPrice, StringFormat=N2}" Width="*"/>
+                                <DataGridTextColumn Header="Line Total (R)" Binding="{Binding LineTotal, StringFormat=N2}" Width="*"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                            <Button Content="Preview Cart" Click="CartPreview_Click" Margin="0,0,8,0"/>
+                            <Button Content="Confirm Cash Received &amp; Checkout" Click="CartCheckout_Click" Background="#15803D"/>
+                        </StackPanel>
+                        <TextBlock x:Name="CartStatus" Foreground="#475569" TextWrapping="Wrap" Margin="0,12,0,0" Text="No items in cart."/>
+                    </StackPanel>
+                </Border>
+                <Button Content="Refresh Sales" HorizontalAlignment="Left" Click="Sales_Click" Margin="0,0,0,16"/>
+                <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10" Padding="8">
+                    <DataGrid x:Name="SalesGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MinHeight="320">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Receipt" Binding="{Binding ReceiptNumber}" Width="*"/>
+                            <DataGridTextColumn Header="Date" Binding="{Binding SaleDate, StringFormat=yyyy-MM-dd HH:mm}" Width="*"/>
+                            <DataGridTextColumn Header="Product" Binding="{Binding ProductName}" Width="2*"/>
+                            <DataGridTextColumn Header="Quantity" Binding="{Binding Quantity}" Width="*"/>
+                            <DataGridTextColumn Header="Total (R)" Binding="{Binding TotalPrice, StringFormat=N2}" Width="*"/>
+                            <DataGridTextColumn Header="Salesperson" Binding="{Binding SalespersonName}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+                <TextBlock x:Name="SalesStatus" Foreground="#64748B" Margin="0,12" Text="Sign in to load sales."/>
+            </StackPanel>
+        </ScrollViewer>
+        <ScrollViewer x:Name="LoginPage" Grid.Column="1" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+            <StackPanel Margin="32" MaxWidth="640" HorizontalAlignment="Left">
+                <TextBlock Text="Staff access" Foreground="#2563EB" FontWeight="SemiBold"/>
+                <TextBlock Text="Sign in to StockAlert" FontSize="28" FontWeight="Bold" Margin="0,6,0,18"/>
+                <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10" Padding="22">
+                    <StackPanel Width="480">
+                        <TextBlock Text="Email"/>
+                        <TextBox x:Name="EmailBox" Margin="0,6,0,14"/>
+                        <TextBlock Text="Password"/>
+                        <PasswordBox x:Name="LoginPasswordBox" Padding="11,9" Margin="0,6,0,18"/>
+                        <StackPanel Orientation="Horizontal">
+                            <Button Content="Sign In with Email" Click="Login_Click" Margin="0,0,10,0"/>
+                            <Button Content="Sign In with Staff Badge" Click="BadgeLogin_Click"/>
+                        </StackPanel>
+                        <TextBlock Text="Staff badge barcode / magnetic staff card" Margin="0,14,0,5"/>
+                        <TextBox x:Name="BadgeLoginBox" ToolTip="Scan your enrolled staff credential with a keyboard-emulating scanner" Margin="0,0,0,8"/>
+                        <TextBlock Text="A scanned badge still requires your password above." Foreground="#64748B" FontSize="12"/>
+                        <TextBlock x:Name="LoginStatusText" Text="Use your assigned staff account." Foreground="#64748B" Margin="0,14,0,0" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+                <TextBlock Text="Staff badge barcode and magnetic-stripe login will require centrally managed, revocable badge credentials and an authenticated reader workflow. Fingerprint sign-in will use Windows Hello; fingerprint templates will not be stored in StockAlert." TextWrapping="Wrap" Foreground="#64748B" Margin="0,18,0,0"/>
+            </StackPanel>
+        </ScrollViewer>
+        <ScrollViewer x:Name="ConnectionPage" Grid.Column="1" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+            <StackPanel Margin="32" MaxWidth="640" HorizontalAlignment="Left">
+                <TextBlock Text="System configuration" Foreground="#2563EB" FontWeight="SemiBold"/>
+                <TextBlock Text="API Connection" FontSize="28" FontWeight="Bold" Margin="0,6,0,18"/>
+                <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10" Padding="22">
+                    <StackPanel Width="480">
+                        <TextBlock Text="API base URL" Foreground="#64748B"/>
+                        <TextBox x:Name="ApiUrlBox" Text="https://localhost:7001" Margin="0,6,0,12"/>
+                        <Button Content="Save Connection" Click="SaveConnection_Click" HorizontalAlignment="Left"/>
+                        <TextBlock x:Name="ConnectionStatusText" Text="HTTPS required, except localhost development." Foreground="#64748B" Margin="0,12,0,0" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+        <ScrollViewer x:Name="StaffBadgesPage" Grid.Column="1" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="32">
+                <TextBlock Text="Staff security" Foreground="#2563EB" FontWeight="SemiBold"/>
+                <TextBlock Text="Staff Badge Management" FontSize="28" FontWeight="Bold" Margin="0,6,0,18"/>
+                <TextBlock Text="Owner and Manager only. Staff badges require a password to sign in." Foreground="#64748B" Margin="0,0,0,16"/>
+                <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10" Padding="16" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="Enrol a badge for a staff account" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                        <StackPanel Orientation="Horizontal">
+                            <ComboBox x:Name="BadgeStaffPicker" Width="330" DisplayMemberPath="Display" Margin="0,0,10,0"/>
+                            <Button Content="Enrol New Badge" Click="EnrolBadge_Click" Margin="0,0,10,0"/>
+                            <Button Content="Refresh" Click="StaffBadges_Click"/>
+                        </StackPanel>
+                        <TextBlock Text="New badge secrets are shown only once. Do not share them in chat, email or logs." Foreground="#64748B" Margin="0,12,0,0"/>
+                    </StackPanel>
+                </Border>
+                <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10" Padding="8">
+                    <DataGrid x:Name="BadgeAssignmentsGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MinHeight="280">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Staff" Binding="{Binding StaffName}" Width="2*"/>
+                            <DataGridTextColumn Header="Email" Binding="{Binding StaffEmail}" Width="2*"/>
+                            <DataGridCheckBoxColumn Header="Revoked" Binding="{Binding IsRevoked}" Width="*"/>
+                            <DataGridTextColumn Header="Enrolled" Binding="{Binding CreatedAtUtc, StringFormat=yyyy-MM-dd HH:mm}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+                <Button Content="Revoke Selected Badge" HorizontalAlignment="Left" Margin="0,14,0,0" Click="RevokeBadge_Click" Background="#B91C1C"/>
+                <TextBlock x:Name="BadgeAdminStatus" Text="Sign in as Owner or Manager to manage badges." Foreground="#64748B" Margin="0,12,0,0"/>
+            </StackPanel>
+        </ScrollViewer>
     </Grid>
 </Window>

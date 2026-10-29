@@ -1,4 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 using StockAlert.Application.DTOs; // Add this
 using StockAlert.Infrastructure.Services;
 
@@ -14,6 +16,16 @@ public class AuthController : ControllerBase
     {
         _authService = authService;
     }
+
+    [Authorize]
+    [HttpGet("me")]
+    public IActionResult Me() => Ok(new
+    {
+        userId = User.FindFirstValue(ClaimTypes.NameIdentifier),
+        email = User.FindFirstValue(ClaimTypes.Email),
+        name = User.FindFirstValue(ClaimTypes.Name),
+        roles = User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToArray()
+    });
 
     [HttpPost("register")] // Don't forget the Attribute!
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)

@@ -1,0 +1,102 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using StockAlert.Application.DTOs;
+using StockAlert.Application.Interfaces;
+using StockAlert.Infrastructure.Services;
+
+namespace StockAlert.API.Controllers;
+
+[Authorize]
+[ApiController]
+[Route("api/checkout")]
+public sealed class CheckoutController : ControllerBase
+{
+    private readonly IProductService _products;
+    private readonly CheckoutPostingService _posting;
+    private readonly IBusinessProfileService _business;
+
+    public CheckoutController(IProductService products, CheckoutPostingService posting, IBusinessProfileService business)
+    {
+        _products = products;
+        _posting = posting;
+        _business = business;
+    }
+
+    [Authorize(Roles = "Owner,Manager,Sales")]
+    [HttpPost("cash")]
+    public async Task<IActionResult> CommitCash(
+        [FromBody] CommitCheckoutRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var receipt = await _posting.CommitCashAsync(request, cancellationToken);
+            Response.Headers.CacheControl = "no-store";
+            return Ok(receipt);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+    }
+
+    // A non-posting preview shared by Next.js and WPF. This does not reserve
+    // inventory, capture a tender, create a receipt or commit a sale.
+    [HttpPost("preview")]
+    public async Task<IActionResult> Preview([FromBody] CheckoutPreviewRequest request)
+    {
+        if (request.Items is not { Count: > 0 and <= 100 })
+            return BadRequest(new { message = "A cart must contain 1 to 100 distinct products." });
+
+        if (request.Items.Any(item => item.ProductId == Guid.Empty || item.Quantity <= 0))
+            return BadRequest(new { message = "Each cart item requires a product and positive quantity." });
+
+        if (request.Items.Select(item => item.ProductId).Distinct().Count() != request.Items.Count)
+            return BadRequest(new { message = "Combine duplicate products before previewing." });
+
+        var catalog = (await _products.GetAllProductsAsync()).ToDictionary(p => p.Id);
+        var lines = new List<CheckoutPreviewLineDto>();
+
+        foreach (var item in request.Items)
+        {
+            if (!catalog.TryGetValue(item.ProductId, out var product))
+                return BadRequest(new { message = $"Product {item.ProductId} is unavailable." });
+            if (item.Quantity > product.AvailableQuantity)
+                return Conflict(new { message = $"Insufficient available stock for {product.Name}." });
+
+            decimal amount;
+            try { amount = checked(product.Price * item.Quantity); }
+            catch (OverflowException) { return BadRequest(new { message = "Cart amount exceeds supported limits." }); }
+            lines.Add(new CheckoutPreviewLineDto(item.ProductId, product.Name,
+                product.Barcode, item.Quantity, product.Price, amount, product.AvailableQuantity));
+        }
+
+        decimal subtotal;
+        try { subtotal = checked(lines.Sum(line => line.LineTotal)); }
+        catch (OverflowException) { return BadRequest(new { message = "Cart total exceeds supported limits." }); }
+
+        var profile = await _business.GetAsync();
+        var vatRate = profile.IsVatRegistered ? profile.DefaultVatRate : 0m;
+        if (vatRate < 0 || vatRate > 100)
+            return Conflict(new { message = "Invalid configured VAT rate." });
+        decimal vatAmount, total;
+        try
+        {
+            vatAmount = decimal.Round(checked(subtotal * vatRate / 100m), 2,
+                MidpointRounding.AwayFromZero);
+            total = checked(subtotal + vatAmount);
+        }
+        catch (OverflowException)
+        {
+            return BadRequest(new { message = "Cart total exceeds supported limits." });
+        }
+
+        return Ok(new CheckoutPreviewDto(lines, subtotal, vatAmount, total,
+            lines.Sum(x => (long)x.Quantity),
+            DateTime.UtcNow,
+            "Estimate only. Final VAT, payment verification and stock deduction require transactional checkout."));
+    }
+}

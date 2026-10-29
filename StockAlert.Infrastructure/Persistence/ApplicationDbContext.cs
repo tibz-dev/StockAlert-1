@@ -24,6 +24,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<Supplier> Suppliers => Set<Supplier>();
     public DbSet<Sale> Sales => Set<Sale>();
+    public DbSet<CheckoutTransaction> CheckoutTransactions => Set<CheckoutTransaction>();
+    public DbSet<CheckoutLine> CheckoutLines => Set<CheckoutLine>();
+    public DbSet<CheckoutTender> CheckoutTenders => Set<CheckoutTender>();
+    public DbSet<StaffBadge> StaffBadges => Set<StaffBadge>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<StockAdjustment> StockAdjustments => Set<StockAdjustment>();
     public DbSet<BusinessProfile> BusinessProfiles => Set<BusinessProfile>();
@@ -491,6 +495,44 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
+        modelBuilder.Entity<CheckoutTransaction>(entity =>
+        {
+            entity.HasIndex(x => x.ClientOperationId).IsUnique();
+            entity.HasIndex(x => x.ReceiptNumber).IsUnique();
+            entity.Property(x => x.ReceiptNumber).HasMaxLength(64);
+            entity.Property(x => x.Status).HasMaxLength(32);
+            entity.Property(x => x.Subtotal).HasPrecision(18, 2);
+            entity.Property(x => x.VatAmount).HasPrecision(18, 2);
+            entity.Property(x => x.Total).HasPrecision(18, 2);
+            entity.HasOne(x => x.Customer).WithMany()
+                .HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.SetNull);
+        });
+        modelBuilder.Entity<CheckoutLine>(entity =>
+        {
+            entity.Property(x => x.UnitPrice).HasPrecision(18, 2);
+            entity.Property(x => x.LineTotal).HasPrecision(18, 2);
+            entity.HasOne(x => x.CheckoutTransaction).WithMany(x => x.Lines)
+                .HasForeignKey(x => x.CheckoutTransactionId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Product).WithMany()
+                .HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(x => new { x.CheckoutTransactionId, x.ProductId }).IsUnique();
+        });
+        modelBuilder.Entity<CheckoutTender>(entity =>
+        {
+            entity.Property(x => x.Amount).HasPrecision(18, 2);
+            entity.Property(x => x.Method).HasMaxLength(40);
+            entity.Property(x => x.Status).HasMaxLength(32);
+            entity.Property(x => x.ExternalReference).HasMaxLength(150);
+            entity.HasOne(x => x.CheckoutTransaction).WithMany(x => x.Tenders)
+                .HasForeignKey(x => x.CheckoutTransactionId).OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<StaffBadge>(entity =>
+        {
+            entity.Property(x => x.BadgeHash).HasMaxLength(64).IsRequired();
+            entity.HasIndex(x => x.BadgeHash).IsUnique();
+            entity.HasOne(x => x.User).WithMany()
+                .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
         base.OnModelCreating(modelBuilder);
     }
 }
