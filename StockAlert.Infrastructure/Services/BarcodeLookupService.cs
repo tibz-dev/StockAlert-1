@@ -21,7 +21,7 @@ public class BarcodeLookupService : IBarcodeLookupService
 
     public async Task<BarcodeLookupResultDto> LookupAsync(string barcode)
     {
-        var normalized = Normalize(barcode);
+        var normalized = InternalBarcodeGenerator.Normalize(barcode);
 
         var local = await _context.Products
             .AsNoTracking()
@@ -46,6 +46,12 @@ public class BarcodeLookupService : IBarcodeLookupService
                 null,
                 null,
                 "StockAlert");
+        }
+
+        if (normalized.StartsWith("SA-", StringComparison.Ordinal))
+        {
+            return new BarcodeLookupResultDto(
+                normalized, false, false, null, null, null, null, "Manual");
         }
 
         var client = _httpClientFactory.CreateClient();
@@ -86,21 +92,6 @@ public class BarcodeLookupService : IBarcodeLookupService
             "Manual");
     }
 
-    private static string Normalize(string barcode)
-    {
-        var normalized = new string(
-            (barcode ?? string.Empty)
-                .Where(char.IsDigit)
-                .ToArray());
-
-        if (normalized.Length < 8 || normalized.Length > 14)
-        {
-            throw new ArgumentException(
-                "Barcode must contain between 8 and 14 digits.");
-        }
-
-        return normalized;
-    }
 
     private sealed class UpcResponse
     {
