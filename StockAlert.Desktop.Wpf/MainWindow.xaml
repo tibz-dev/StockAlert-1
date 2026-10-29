@@ -275,7 +275,25 @@
             <StackPanel Margin="32">
                 <TextBlock Text="Sales management" Foreground="#2563EB" FontWeight="SemiBold"/>
                 <TextBlock Text="Quotes" FontSize="28" FontWeight="Bold" Margin="0,6,0,20"/>
-                <Button Content="Refresh Quotes" HorizontalAlignment="Left" Click="Quotes_Click" Margin="0,0,0,16"/>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                    <Button Content="Refresh Quotes" Click="Quotes_Click" Margin="0,0,8,0"/>
+                    <ComboBox x:Name="QuoteStatusCombo" Width="150" SelectedIndex="0" Margin="0,0,8,0">
+                        <ComboBoxItem Content="Draft"/><ComboBoxItem Content="Sent"/>
+                        <ComboBoxItem Content="Accepted"/><ComboBoxItem Content="Rejected"/>
+                        <ComboBoxItem Content="Expired"/><ComboBoxItem Content="Cancelled"/>
+                    </ComboBox>
+                    <Button Content="Set Status" Click="UpdateQuoteStatus_Click" Margin="0,0,8,0"/>
+                    <Button Content="Convert to Sale" Click="ConvertQuote_Click"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                    <TextBlock Text="Payment (R):" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBox x:Name="QuotePaymentAmountBox" Width="95" Margin="0,0,8,0"/>
+                    <ComboBox x:Name="QuotePaymentMethodCombo" Width="115" SelectedIndex="0" Margin="0,0,8,0">
+                        <ComboBoxItem Content="Cash"/><ComboBoxItem Content="Card"/><ComboBoxItem Content="EFT"/>
+                    </ComboBox>
+                    <TextBox x:Name="QuotePaymentReferenceBox" Width="145" ToolTip="Payment reference (optional)" Margin="0,0,8,0"/>
+                    <Button Content="Record Payment" Click="RecordQuotePayment_Click"/>
+                </StackPanel>
                 <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10" Padding="8">
                     <DataGrid x:Name="QuotesGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MinHeight="320">
                         <DataGrid.Columns>
