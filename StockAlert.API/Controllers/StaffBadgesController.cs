@@ -13,6 +13,16 @@ public class StaffBadgesController : ControllerBase
     private readonly StaffBadgeService _badges;
     public StaffBadgesController(StaffBadgeService badges) => _badges = badges;
 
+    [Authorize(Roles = "Owner,Manager")]
+    [HttpGet]
+    public async Task<IActionResult> List(CancellationToken ct) =>
+        Ok(await _badges.ListAsync(ct));
+
+    [Authorize(Roles = "Owner,Manager")]
+    [HttpGet("staff")]
+    public async Task<IActionResult> Staff(CancellationToken ct) =>
+        Ok(await _badges.ListStaffAsync(ct));
+
     public record EnrolBadgeRequest(string UserId);
     public record BadgeLoginRequest(string Badge, string Password);
 
