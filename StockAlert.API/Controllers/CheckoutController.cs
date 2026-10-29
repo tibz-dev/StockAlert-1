@@ -49,7 +49,7 @@ public sealed class CheckoutController : ControllerBase
         try { subtotal = checked(lines.Sum(line => line.LineTotal)); }
         catch (OverflowException) { return BadRequest(new { message = "Cart total exceeds supported limits." }); }
 
-        return Ok(new CheckoutPreviewDto(lines, subtotal, lines.Sum(x => x.Quantity),
+        return Ok(new CheckoutPreviewDto(lines, subtotal, lines.Sum(x => (long)x.Quantity),
             DateTime.UtcNow,
             "Estimate only. Final VAT, payment verification and stock deduction require transactional checkout."));
     }
