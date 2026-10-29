@@ -198,14 +198,14 @@ public sealed class ProductApiClient : IDisposable
     }
 
     public async Task<CheckoutReceipt> CommitCashCheckoutAsync(string apiUrl, string jwt,
-        IReadOnlyList<CheckoutCartLine> cart, Guid operationId)
+        IReadOnlyList<CheckoutCartLine> cart, Guid operationId, decimal expectedTotal)
     {
         Configure(apiUrl, jwt);
         using var response = await _http.PostAsJsonAsync(
             new Uri(new Uri(apiUrl.TrimEnd('/') + "/"), "api/checkout/cash"),
             new { clientOperationId = operationId,
                   items = cart.Select(x => new { productId = x.ProductId, quantity = x.Quantity }).ToArray(),
-                  cashReceived = true });
+                  cashReceived = true, expectedTotal });
         await EnsureSuccessAsync(response);
         return await response.Content.ReadFromJsonAsync<CheckoutReceipt>()
             ?? throw new InvalidOperationException("Empty checkout receipt response.");
