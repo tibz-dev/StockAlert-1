@@ -40,5 +40,57 @@ public sealed class ProductApiClient : IDisposable
             new AuthenticationHeaderValue("Bearer", jwt.Trim());
     }
 
+
+    public async Task<string> LoginAsync(string apiUrl, string email, string password)
+    {
+        ConfigureAddress(apiUrl);
+        using var response = await _http.PostAsJsonAsync(
+            new Uri(new Uri(apiUrl.TrimEnd('/') + "/"), "api/Auth/login"),
+            new { email, password });
+        var result = await response.Content.ReadFromJsonAsync<LoginResponse>();
+        if (!response.IsSuccessStatusCode || result?.Success != true ||
+            string.IsNullOrWhiteSpace(result.Token))
+            throw new InvalidOperationException(result?.Message ?? "Login failed.");
+        return result.Token;
+    }
+
+    public async Task SaveProductAsync(string apiUrl, string jwt, ProductRow product, bool isNew)
+    {
+        Configure(apiUrl, jwt);
+        var request = new
+        {
+            product.Name,
+            product.Description,
+            product.Barcode,
+            product.Price,
+            StockQuantity = product.StockQuantity,
+            product.CategoryName,
+            product.SupplierName,
+            product.SupplierEmail
+        };
+        var address = new Uri(new Uri(apiUrl.TrimEnd('/') + "/"),
+            isNew ? "api/Products" : $"api/Products/{product.Id}");
+        using var response = isNew
+            ? await _http.PostAsJsonAsync(address, request)
+            : await _http.PutAsJsonAsync(address, request);
+        if (!response.IsSuccessStatusCode)
+            throw new HttpRequestException(await response.Content.ReadAsStringAsync());
+    }
+
+    private sealed class LoginResponse
+    {
+        public bool Success { get; set; }
+        public string? Token { get; set; }
+        public string? Message { get; set; }
+    }
+
+    private static void ConfigureAddress(string apiUrl)
+    {
+        if (!Uri.TryCreate(apiUrl, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttps &&
+             !(uri.Scheme == Uri.UriSchemeHttp && uri.IsLoopback)))
+            throw new ArgumentException("Use HTTPS (HTTP allowed only on localhost).");
+    }
+
     public void Dispose() => _http.Dispose();
 }
