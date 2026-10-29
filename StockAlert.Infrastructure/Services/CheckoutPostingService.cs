@@ -21,6 +21,8 @@ public sealed class CheckoutPostingService
     {
         if (request.ClientOperationId == Guid.Empty)
             throw new ArgumentException("ClientOperationId is required for retry safety.");
+        if (request.ExpectedTotal <= 0)
+            throw new ArgumentException("Expected cash total must be positive.");
         if (!request.CashReceived)
             throw new ArgumentException("Confirm cash was physically received before checkout.");
         if (request.Items is not { Count: > 0 and <= 100 } ||
@@ -40,7 +42,7 @@ public sealed class CheckoutPostingService
             var sameLines = previous.Lines.Count == request.Items.Count &&
                 request.Items.All(item => previous.Lines.Any(existing =>
                     existing.ProductId == item.ProductId && existing.Quantity == item.Quantity));
-            if (!sameLines || previous.CustomerId != request.CustomerId)
+            if (!sameLines || previous.CustomerId != request.CustomerId || previous.Total != request.ExpectedTotal)
                 throw new InvalidOperationException(
                     "This operation ID belongs to a different checkout request.");
             await transaction.CommitAsync(cancellationToken);
@@ -108,6 +110,8 @@ public sealed class CheckoutPostingService
         header.VatAmount = decimal.Round(header.Subtotal * vatRate / 100m, 2,
             MidpointRounding.AwayFromZero);
         header.Total = checked(header.Subtotal + header.VatAmount);
+        if (header.Total != request.ExpectedTotal)
+            throw new InvalidOperationException("Checkout total changed. Preview again before taking payment.");
         header.Tenders.Add(new CheckoutTender
         {
             Id = Guid.NewGuid(), Method = "Cash", Amount = header.Total,
