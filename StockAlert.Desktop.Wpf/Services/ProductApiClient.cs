@@ -185,6 +185,20 @@ public sealed class ProductApiClient : IDisposable
         return await response.Content.ReadFromJsonAsync<List<QuoteRow>>() ?? new List<QuoteRow>();
     }
 
+    public async Task<SaleReceiptResult> RecordSaleAsync(string apiUrl, string jwt,
+        Guid productId, int quantity, string? customerName)
+    {
+        Configure(apiUrl, jwt);
+        // One product per API sale; do not fake a multi-line atomic checkout.
+        using var response = await _http.PostAsJsonAsync(
+            new Uri(new Uri(apiUrl.TrimEnd('/') + "/"), "api/Sales"),
+            new { productId, quantity, customerName,
+                  clientOperationId = Guid.NewGuid() });
+        await EnsureSuccessAsync(response);
+        return await response.Content.ReadFromJsonAsync<SaleReceiptResult>()
+            ?? throw new InvalidOperationException("Sale created without a receipt response.");
+    }
+
     public async Task<IReadOnlyList<SaleRow>> GetSalesAsync(string apiUrl, string jwt)
     {
         Configure(apiUrl, jwt);
