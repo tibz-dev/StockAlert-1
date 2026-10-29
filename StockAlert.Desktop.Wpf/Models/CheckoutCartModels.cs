@@ -13,7 +13,9 @@ public sealed class CheckoutCartLine
 public sealed class CheckoutPreview
 {
     public decimal Subtotal { get; set; }
-    public int TotalUnits { get; set; }
+    public long TotalUnits { get; set; }
+    public decimal VatAmount { get; set; }
+    public decimal Total { get; set; }
     public string Note { get; set; } = "";
     public List<CheckoutCartLine> Items { get; set; } = new();
 }
