@@ -81,6 +81,40 @@ public sealed class ProductApiClient : IDisposable
             throw new HttpRequestException(await response.Content.ReadAsStringAsync());
     }
 
+    public async Task CreateStocktakeAsync(string apiUrl, string jwt, string title, string? location, string? zone)
+    {
+        Configure(apiUrl, jwt);
+        using var response = await _http.PostAsJsonAsync(
+            new Uri(new Uri(apiUrl.TrimEnd('/') + "/"), "api/stocktakes"),
+            new { title, location, zone, source = "StockAlert", blindCount = true });
+        await EnsureSuccessAsync(response);
+    }
+
+    public async Task ResolveStocktakeItemAsync(string apiUrl, string jwt,
+        Guid sessionId, Guid itemId, int finalQuantity, string reason)
+    {
+        Configure(apiUrl, jwt);
+        using var response = await _http.PostAsJsonAsync(
+            new Uri(new Uri(apiUrl.TrimEnd('/') + "/"),
+                $"api/stocktakes/{sessionId}/items/{itemId}/resolve"),
+            new { finalQuantity, reason });
+        await EnsureSuccessAsync(response);
+    }
+
+    public async Task CompleteStocktakeAsync(string apiUrl, string jwt, Guid sessionId)
+    {
+        Configure(apiUrl, jwt);
+        using var response = await _http.PostAsync(
+            new Uri(new Uri(apiUrl.TrimEnd('/') + "/"), $"api/stocktakes/{sessionId}/complete"), null);
+        await EnsureSuccessAsync(response);
+    }
+
+    private static async Task EnsureSuccessAsync(HttpResponseMessage response)
+    {
+        if (!response.IsSuccessStatusCode)
+            throw new HttpRequestException(await response.Content.ReadAsStringAsync());
+    }
+
     public async Task<string> GetBarcodeSvgAsync(string apiUrl, string jwt, Guid id)
     {
         Configure(apiUrl, jwt);
