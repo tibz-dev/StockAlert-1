@@ -444,7 +444,7 @@ public partial class MainWindow : Window
 
             _cartPosting = true;
             var receipt = await _client.CommitCashCheckoutAsync(ApiUrlBox.Text, token,
-                _cartLines, _cartOperationId);
+                _cartLines, _cartOperationId, preview.Total);
             CartStatus.Text = $"Checkout posted: {receipt.ReceiptNumber} · R {receipt.Total:N2} (cash).";
             _cartLines.Clear();
             _cartOperationId = Guid.NewGuid();
