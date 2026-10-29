@@ -20,6 +20,29 @@ public partial class MainWindow : Window
         Closed += (_, _) => _client.Dispose();
     }
 
+    private void Dashboard_Click(object sender, RoutedEventArgs e)
+    {
+        InventoryPage.Visibility = Visibility.Collapsed;
+        DashboardPage.Visibility = Visibility.Visible;
+        Title = "StockAlert Desktop | Dashboard";
+        UpdateDashboard();
+    }
+
+    private void Inventory_Click(object sender, RoutedEventArgs e)
+    {
+        DashboardPage.Visibility = Visibility.Collapsed;
+        InventoryPage.Visibility = Visibility.Visible;
+        Title = "StockAlert Desktop | Inventory";
+    }
+
+    private void UpdateDashboard()
+    {
+        TotalProductsText.Text = _products.Count.ToString("N0");
+        LowStockText.Text = _products.Count(p => p.StockQuantity < 5).ToString("N0");
+        OnHandText.Text = _products.Sum(p => (long)p.StockQuantity).ToString("N0");
+        AvailableText.Text = _products.Sum(p => (long)p.AvailableQuantity).ToString("N0");
+    }
+
     private async void Login_Click(object sender, RoutedEventArgs e)
     {
         try
@@ -46,6 +69,7 @@ public partial class MainWindow : Window
             throw new InvalidOperationException("Sign in first.");
         _products = await _client.GetProductsAsync(ApiUrlBox.Text, _sessionToken);
         ApplySearch();
+        UpdateDashboard();
         StatusText.Text = $"Loaded {_products.Count} products.";
     }
 
