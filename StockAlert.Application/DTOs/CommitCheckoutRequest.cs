@@ -4,6 +4,7 @@ public record CommitCheckoutRequest(
     Guid ClientOperationId,
     List<CheckoutPreviewItemRequest> Items,
     bool CashReceived,
+    decimal ExpectedTotal,
     Guid? CustomerId = null);
 
 public record CheckoutReceiptDto(
