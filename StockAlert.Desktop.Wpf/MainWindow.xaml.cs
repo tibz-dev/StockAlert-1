@@ -424,7 +424,7 @@ public partial class MainWindow : Window
             if (_cartPosting) return;
             if (_cartLines.Count == 0) throw new InvalidOperationException("Add products first.");
             var preview = await _client.PreviewCheckoutAsync(ApiUrlBox.Text, AuthorizedToken(), _cartLines);
-            CartStatus.Text = $"Server preview: {preview.TotalUnits} units, subtotal R {preview.Subtotal:N2}. {preview.Note}";
+            CartStatus.Text = $"Server preview: {preview.TotalUnits} units, subtotal R {preview.Subtotal:N2}, VAT R {preview.VatAmount:N2}, total R {preview.Total:N2}. {preview.Note}";
         }
         catch (Exception ex) { CartStatus.Text = ex.Message; }
     }
@@ -438,7 +438,7 @@ public partial class MainWindow : Window
             var token = AuthorizedToken();
             var preview = await _client.PreviewCheckoutAsync(ApiUrlBox.Text, token, _cartLines);
             if (MessageBox.Show(
-                $"Server-priced subtotal R {preview.Subtotal:N2} for {preview.TotalUnits} units.\\n\\nHave you physically received the full CASH payment? VAT may affect the final total.",
+                $"Server-priced TOTAL R {preview.Total:N2} (including VAT R {preview.VatAmount:N2}) for {preview.TotalUnits} units.\\n\\nHave you physically received the full CASH payment? Final prices will be revalidated at posting.",
                 "Confirm Cash Received", MessageBoxButton.YesNo, MessageBoxImage.Warning)
                 != MessageBoxResult.Yes) return;
 
