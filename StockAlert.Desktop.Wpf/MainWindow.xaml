@@ -315,6 +315,20 @@
             <StackPanel Margin="32">
                 <TextBlock Text="Sales management" Foreground="#2563EB" FontWeight="SemiBold"/>
                 <TextBlock Text="Sales History" FontSize="28" FontWeight="Bold" Margin="0,6,0,20"/>
+                <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10" Padding="16" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="Quick Sale — Single Item" FontWeight="Bold" FontSize="18" Margin="0,0,0,4"/>
+                        <TextBlock Text="The existing sales API records one product per transaction. Multi-item checkout and payment processing are not yet supported." Foreground="#64748B" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBox x:Name="PosBarcodeBox" Width="210" ToolTip="Scan an exact product barcode"/>
+                            <TextBox x:Name="PosQuantityBox" Text="1" Width="65" Margin="8,0" ToolTip="Quantity"/>
+                            <TextBox x:Name="PosCustomerBox" Width="180" Margin="0,0,8,0" ToolTip="Customer name (optional)"/>
+                            <Button Content="Find Item" Click="PosLookup_Click" Margin="0,0,8,0"/>
+                            <Button Content="Record Sale" Click="PosSale_Click"/>
+                        </StackPanel>
+                        <TextBlock x:Name="PosPreviewText" Text="Enter or scan a barcode, then select Find Item." Foreground="#64748B" Margin="0,12,0,0"/>
+                    </StackPanel>
+                </Border>
                 <Button Content="Refresh Sales" HorizontalAlignment="Left" Click="Sales_Click" Margin="0,0,0,16"/>
                 <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10" Padding="8">
                     <DataGrid x:Name="SalesGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MinHeight="320">
