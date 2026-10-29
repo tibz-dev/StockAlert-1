@@ -23,6 +23,42 @@ public sealed class ProductApiClient : IDisposable
         return result.Token;
     }
 
+    public async Task<IReadOnlyList<BadgeStaffRow>> GetBadgeStaffAsync(string apiUrl, string jwt)
+    {
+        Configure(apiUrl, jwt);
+        using var response = await _http.GetAsync(new Uri(
+            new Uri(apiUrl.TrimEnd('/') + "/"), "api/staff-badges/staff"));
+        await EnsureSuccessAsync(response);
+        return await response.Content.ReadFromJsonAsync<List<BadgeStaffRow>>() ?? new();
+    }
+
+    public async Task<IReadOnlyList<BadgeAssignmentRow>> GetBadgeAssignmentsAsync(string apiUrl, string jwt)
+    {
+        Configure(apiUrl, jwt);
+        using var response = await _http.GetAsync(new Uri(
+            new Uri(apiUrl.TrimEnd('/') + "/"), "api/staff-badges"));
+        await EnsureSuccessAsync(response);
+        return await response.Content.ReadFromJsonAsync<List<BadgeAssignmentRow>>() ?? new();
+    }
+
+    public async Task<EnrolledBadgeResult> EnrolBadgeAsync(string apiUrl, string jwt, string userId)
+    {
+        Configure(apiUrl, jwt);
+        using var response = await _http.PostAsJsonAsync(new Uri(
+            new Uri(apiUrl.TrimEnd('/') + "/"), "api/staff-badges/enrol"), new { userId });
+        await EnsureSuccessAsync(response);
+        return await response.Content.ReadFromJsonAsync<EnrolledBadgeResult>()
+            ?? throw new InvalidOperationException("No badge returned.");
+    }
+
+    public async Task RevokeBadgeAsync(string apiUrl, string jwt, Guid badgeId)
+    {
+        Configure(apiUrl, jwt);
+        using var response = await _http.PostAsync(new Uri(
+            new Uri(apiUrl.TrimEnd('/') + "/"), $"api/staff-badges/{badgeId}/revoke"), null);
+        await EnsureSuccessAsync(response);
+    }
+
     public async Task<StaffSession> GetSessionAsync(string apiUrl, string jwt)
     {
         Configure(apiUrl, jwt);
