@@ -227,7 +227,12 @@
             <StackPanel Margin="32">
                 <TextBlock Text="Inventory reconciliation" Foreground="#2563EB" FontWeight="SemiBold"/>
                 <TextBlock Text="Stocktakes" FontSize="28" FontWeight="Bold" Margin="0,6,0,20"/>
-                <Button Content="Refresh Stocktakes" HorizontalAlignment="Left" Click="Stocktakes_Click" Margin="0,0,0,16"/>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                    <TextBox x:Name="NewStocktakeTitleBox" Width="190" ToolTip="New stocktake title"/>
+                    <TextBox x:Name="NewStocktakeLocationBox" Width="140" Margin="8,0" ToolTip="Location (optional)"/>
+                    <Button Content="Create Stocktake" Click="CreateStocktake_Click" Margin="0,0,8,0"/>
+                    <Button Content="Refresh Stocktakes" Click="Stocktakes_Click"/>
+                </StackPanel>
                 <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10" Padding="8">
                     <DataGrid x:Name="StocktakesGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MinHeight="300">
                         <DataGrid.Columns>
@@ -248,6 +253,11 @@
                     <TextBox x:Name="StocktakeQuantityBox" Width="80" Margin="8,0" ToolTip="Counted quantity"/>
                     <Button Content="Submit Count" Click="SubmitStocktakeCount_Click" Margin="0,0,8,0"/>
                     <Button Content="Submit Recount" Click="SubmitStocktakeRecount_Click"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,10,0,10">
+                    <TextBox x:Name="StocktakeResolutionReasonBox" Width="300" ToolTip="Reason for variance resolution"/>
+                    <Button Content="Resolve Selected Item" Click="ResolveStocktake_Click" Margin="8,0,8,0"/>
+                    <Button Content="Complete Stocktake" Click="CompleteStocktake_Click"/>
                 </StackPanel>
                 <DataGrid x:Name="StocktakeItemsGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MinHeight="220">
                     <DataGrid.Columns>
