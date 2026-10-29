@@ -4,12 +4,14 @@ using System.Windows;
 using System.Windows.Input;
 using StockAlert.Desktop.Wpf.Models;
 using StockAlert.Desktop.Wpf.Services;
+using StockAlert.Desktop.Wpf.Views;
 
 namespace StockAlert.Desktop.Wpf;
 
 public partial class MainWindow : Window
 {
     private readonly ProductApiClient _client = new();
+    private string? _sessionToken;
     private IReadOnlyList<ProductRow> _products = Array.Empty<ProductRow>();
 
     public MainWindow()
@@ -18,14 +20,75 @@ public partial class MainWindow : Window
         Closed += (_, _) => _client.Dispose();
     }
 
+    private async void Login_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            _sessionToken = null;
+            _products = Array.Empty<ProductRow>();
+            ApplySearch();
+            _sessionToken = await _client.LoginAsync(ApiUrlBox.Text, EmailBox.Text, LoginPasswordBox.Password);
+            LoginPasswordBox.Clear();
+            StatusText.Text = "Signed in. Loading inventory...";
+            await RefreshAsync();
+        }
+        catch (Exception ex)
+        {
+            LoginPasswordBox.Clear();
+            StatusText.Text = "Sign-in failed.";
+            MessageBox.Show(ex.Message, "Sign In", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private async Task RefreshAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_sessionToken))
+            throw new InvalidOperationException("Sign in first.");
+        _products = await _client.GetProductsAsync(ApiUrlBox.Text, _sessionToken);
+        ApplySearch();
+        StatusText.Text = $"Loaded {_products.Count} products.";
+    }
+
+    private async void AddProduct_Click(object sender, RoutedEventArgs e) =>
+        await OpenEditorAsync(null);
+
+    private async void EditProduct_Click(object sender, RoutedEventArgs e)
+    {
+        if (ProductsGrid.SelectedItem is not ProductRow product)
+        {
+            MessageBox.Show("Select a product to edit.", "Inventory");
+            return;
+        }
+        await OpenEditorAsync(product);
+    }
+
+    private async Task OpenEditorAsync(ProductRow? product)
+    {
+        if (string.IsNullOrWhiteSpace(_sessionToken))
+        {
+            MessageBox.Show("Please sign in first.", "Inventory");
+            return;
+        }
+        var editor = new ProductEditorWindow(product) { Owner = this };
+        if (editor.ShowDialog() != true || editor.Result == null) return;
+        try
+        {
+            await _client.SaveProductAsync(ApiUrlBox.Text, _sessionToken, editor.Result, product == null);
+            await RefreshAsync();
+            StatusText.Text = "Product saved successfully.";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(ex.Message, "Could not save product", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
     private async void LoadProducts_Click(object sender, RoutedEventArgs e)
     {
         try
         {
             StatusText.Text = "Loading products...";
-            _products = await _client.GetProductsAsync(ApiUrlBox.Text, TokenBox.Password);
-            ApplySearch();
-            StatusText.Text = $"Loaded {_products.Count} products.";
+            await RefreshAsync();
         }
         catch (Exception ex)
         {
@@ -64,7 +127,9 @@ public partial class MainWindow : Window
         }
         try
         {
-            var svg = await _client.GetBarcodeSvgAsync(ApiUrlBox.Text, TokenBox.Password, product.Id);
+            if (string.IsNullOrWhiteSpace(_sessionToken))
+                throw new InvalidOperationException("Sign in first.");
+            var svg = await _client.GetBarcodeSvgAsync(ApiUrlBox.Text, _sessionToken, product.Id);
             var path = Path.Combine(Path.GetTempPath(), $"StockAlert-label-{Guid.NewGuid():N}.svg");
             await File.WriteAllTextAsync(path, svg);
             Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
