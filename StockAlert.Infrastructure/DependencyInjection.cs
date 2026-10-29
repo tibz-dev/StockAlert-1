@@ -30,6 +30,7 @@ public static class DependencyInjection
             .AddEntityFrameworkStores<ApplicationDbContext>();
 
         services.AddScoped<AuthService>();
+        services.AddScoped<StaffBadgeService>();
         services.AddScoped<IProductService, ProductService>();
         services.AddScoped<CheckoutPostingService>();
         services.AddScoped<IStockMovementService, StockMovementService>();
