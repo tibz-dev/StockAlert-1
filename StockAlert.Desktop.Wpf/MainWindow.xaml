@@ -367,7 +367,13 @@
                         <TextBox x:Name="EmailBox" Margin="0,6,0,14"/>
                         <TextBlock Text="Password"/>
                         <PasswordBox x:Name="LoginPasswordBox" Padding="11,9" Margin="0,6,0,18"/>
-                        <Button Content="Sign In" Click="Login_Click" HorizontalAlignment="Left"/>
+                        <StackPanel Orientation="Horizontal">
+                            <Button Content="Sign In with Email" Click="Login_Click" Margin="0,0,10,0"/>
+                            <Button Content="Sign In with Staff Badge" Click="BadgeLogin_Click"/>
+                        </StackPanel>
+                        <TextBlock Text="Staff badge barcode / magnetic staff card" Margin="0,14,0,5"/>
+                        <TextBox x:Name="BadgeLoginBox" ToolTip="Scan your enrolled staff credential with a keyboard-emulating scanner" Margin="0,0,0,8"/>
+                        <TextBlock Text="A scanned badge still requires your password above." Foreground="#64748B" FontSize="12"/>
                         <TextBlock x:Name="LoginStatusText" Text="Use your assigned staff account." Foreground="#64748B" Margin="0,14,0,0" TextWrapping="Wrap"/>
                     </StackPanel>
                 </Border>
