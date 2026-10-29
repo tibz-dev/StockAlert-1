@@ -39,6 +39,8 @@ public partial class MainWindow : Window
         InventoryPage.Visibility = Visibility.Collapsed;
         SuppliersPage.Visibility = Visibility.Collapsed;
         CustomersPage.Visibility = Visibility.Collapsed;
+        StockMovementsPage.Visibility = Visibility.Collapsed;
+        StocktakesPage.Visibility = Visibility.Collapsed;
         page.Visibility = Visibility.Visible;
     }
 
@@ -78,6 +80,38 @@ public partial class MainWindow : Window
         {
             CustomersStatus.Text = ex.Message;
         }
+    }
+
+    private async void StockMovements_Click(object sender, RoutedEventArgs e)
+    {
+        ShowPage(StockMovementsPage);
+        Title = "StockAlert Desktop | Stock Movements";
+        try
+        {
+            if (string.IsNullOrWhiteSpace(_sessionToken))
+                throw new InvalidOperationException("Sign in on the Inventory page first.");
+            StockMovementsStatus.Text = "Loading stock movements...";
+            var movements = await _client.GetStockMovementsAsync(ApiUrlBox.Text, _sessionToken);
+            StockMovementsGrid.ItemsSource = movements;
+            StockMovementsStatus.Text = $"{movements.Count} movements loaded (latest 100).";
+        }
+        catch (Exception ex) { StockMovementsStatus.Text = ex.Message; }
+    }
+
+    private async void Stocktakes_Click(object sender, RoutedEventArgs e)
+    {
+        ShowPage(StocktakesPage);
+        Title = "StockAlert Desktop | Stocktakes";
+        try
+        {
+            if (string.IsNullOrWhiteSpace(_sessionToken))
+                throw new InvalidOperationException("Sign in on the Inventory page first.");
+            StocktakesStatus.Text = "Loading stocktakes...";
+            var sessions = await _client.GetStocktakesAsync(ApiUrlBox.Text, _sessionToken);
+            StocktakesGrid.ItemsSource = sessions;
+            StocktakesStatus.Text = $"{sessions.Count} stocktake sessions loaded.";
+        }
+        catch (Exception ex) { StocktakesStatus.Text = ex.Message; }
     }
 
     private void UpdateDashboard()
