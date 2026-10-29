@@ -37,6 +37,12 @@ public sealed class CheckoutPostingService
             .FirstOrDefaultAsync(x => x.ClientOperationId == request.ClientOperationId, cancellationToken);
         if (previous != null)
         {
+            var sameLines = previous.Lines.Count == request.Items.Count &&
+                request.Items.All(item => previous.Lines.Any(existing =>
+                    existing.ProductId == item.ProductId && existing.Quantity == item.Quantity));
+            if (!sameLines || previous.CustomerId != request.CustomerId)
+                throw new InvalidOperationException(
+                    "This operation ID belongs to a different checkout request.");
             await transaction.CommitAsync(cancellationToken);
             return ToReceipt(previous);
         }
@@ -90,7 +96,8 @@ public sealed class CheckoutPostingService
             });
         }
 
-        header.Subtotal = header.Lines.Sum(x => x.LineTotal);
+        try { header.Subtotal = checked(header.Lines.Sum(x => x.LineTotal)); }
+        catch (OverflowException) { throw new ArgumentException("Checkout total exceeds supported limits."); }
         var business = await _db.BusinessProfiles.AsNoTracking().FirstOrDefaultAsync(cancellationToken);
         var vatRate = business?.IsVatRegistered == true ? business.DefaultVatRate : 0m;
         if (vatRate < 0 || vatRate > 100)
