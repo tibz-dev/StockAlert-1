@@ -246,6 +246,78 @@ public partial class MainWindow : Window
         catch (Exception ex) { StocktakesStatus.Text = ex.Message; }
     }
 
+    private QuoteRow SelectedQuote() =>
+        QuotesGrid.SelectedItem as QuoteRow
+        ?? throw new InvalidOperationException("Select a quote first.");
+
+    private string AuthorizedToken() => _sessionToken
+        ?? throw new InvalidOperationException("Sign in first.");
+
+    private async Task RefreshQuotesAsync()
+    {
+        var quotes = await _client.GetQuotesAsync(ApiUrlBox.Text, AuthorizedToken());
+        QuotesGrid.ItemsSource = quotes;
+        QuotesStatus.Text = $"{quotes.Count} quotes loaded.";
+    }
+
+    private async void UpdateQuoteStatus_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var quote = SelectedQuote();
+            var status = (QuoteStatusCombo.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString()
+                ?? throw new InvalidOperationException("Select a status.");
+            if (MessageBox.Show($"Set quote {quote.QuoteNumber} to {status}?",
+                "Confirm status change", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
+                return;
+            await _client.UpdateQuoteStatusAsync(ApiUrlBox.Text, AuthorizedToken(), quote.Id, status);
+            await RefreshQuotesAsync();
+            QuotesStatus.Text = $"Quote changed to {status}.";
+        }
+        catch (Exception ex) { QuotesStatus.Text = ex.Message; }
+    }
+
+    private async void ConvertQuote_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var quote = SelectedQuote();
+            if (MessageBox.Show($"Convert quote {quote.QuoteNumber} to a sale? This may deduct stock.",
+                "Confirm conversion", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+                return;
+            await _client.ConvertQuoteToSaleAsync(ApiUrlBox.Text, AuthorizedToken(), quote.Id);
+            await RefreshQuotesAsync();
+            QuotesStatus.Text = "Quote converted to sale. Refresh Sales to see the transaction.";
+        }
+        catch (Exception ex) { QuotesStatus.Text = ex.Message; }
+    }
+
+    private async void RecordQuotePayment_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var quote = SelectedQuote();
+            if (!decimal.TryParse(QuotePaymentAmountBox.Text, System.Globalization.NumberStyles.Number,
+                System.Globalization.CultureInfo.GetCultureInfo("en-ZA"), out var amount) || amount <= 0)
+                throw new ArgumentException("Enter a valid positive payment amount.");
+            if (amount > quote.BalanceDue)
+                throw new ArgumentException("Payment cannot exceed the quote's current balance.");
+            var method = (QuotePaymentMethodCombo.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString()
+                ?? throw new InvalidOperationException("Select a payment method.");
+            var reference = QuotePaymentReferenceBox.Text.Trim();
+            if (MessageBox.Show($"Record a {method} payment of R {amount:N2} for quote {quote.QuoteNumber}? Confirm funds were actually received.",
+                "Confirm received payment", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+                return;
+            await _client.RecordQuotePaymentAsync(ApiUrlBox.Text, AuthorizedToken(),
+                quote.Id, amount, method, string.IsNullOrWhiteSpace(reference) ? null : reference);
+            await RefreshQuotesAsync();
+            QuotePaymentAmountBox.Clear();
+            QuotePaymentReferenceBox.Clear();
+            QuotesStatus.Text = "Payment recorded.";
+        }
+        catch (Exception ex) { QuotesStatus.Text = ex.Message; }
+    }
+
     private async void Quotes_Click(object sender, RoutedEventArgs e)
     {
         ShowPage(QuotesPage);
