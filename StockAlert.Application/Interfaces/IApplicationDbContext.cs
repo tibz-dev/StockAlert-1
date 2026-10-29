@@ -10,6 +10,9 @@ public interface IApplicationDbContext
     DbSet<Category> Categories { get; }
     DbSet<Supplier> Suppliers { get; }
     DbSet<Sale> Sales { get; }
+    DbSet<CheckoutTransaction> CheckoutTransactions { get; }
+    DbSet<CheckoutLine> CheckoutLines { get; }
+    DbSet<CheckoutTender> CheckoutTenders { get; }
     DbSet<AuditLog> AuditLogs { get; }
     DbSet<StockAdjustment> StockAdjustments { get; }
     DbSet<BusinessProfile> BusinessProfiles { get; }
