@@ -98,22 +98,31 @@
                 <Border Grid.Row="1" Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="11" Padding="16" Margin="0,0,0,18">
                     <Grid>
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="2*"/><ColumnDefinition Width="3*"/><ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="2*"/><ColumnDefinition Width="2*"/><ColumnDefinition Width="2*"/><ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0" Margin="0,0,12,0">
                             <TextBlock Text="API URL" Style="{StaticResource FieldLabel}"/>
                             <TextBox x:Name="ApiUrlBox" Text="https://localhost:7001" Margin="0,5,0,0"/>
                         </StackPanel>
                         <StackPanel Grid.Column="1" Margin="0,0,12,0">
-                            <TextBlock Text="API bearer token (temporary authentication)" Style="{StaticResource FieldLabel}"/>
-                            <PasswordBox x:Name="TokenBox" Padding="11,9" BorderBrush="#CBD5E1" Margin="0,5,0,0"/>
+                            <TextBlock Text="Email" Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="EmailBox" Margin="0,5,0,0"/>
                         </StackPanel>
-                        <Button Grid.Column="2" Content="Refresh" VerticalAlignment="Bottom" Click="LoadProducts_Click"/>
+                        <StackPanel Grid.Column="2" Margin="0,0,12,0">
+                            <TextBlock Text="Password" Style="{StaticResource FieldLabel}"/>
+                            <PasswordBox x:Name="LoginPasswordBox" Padding="11,9" BorderBrush="#CBD5E1" Margin="0,5,0,0"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Bottom">
+                            <Button Content="Sign In" Click="Login_Click" Margin="0,0,8,0"/>
+                            <Button Content="Refresh" Click="LoadProducts_Click"/>
+                        </StackPanel>
                     </Grid>
                 </Border>
                 <Border Grid.Row="2" Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="11" Padding="16" Margin="0,0,0,18">
                     <DockPanel>
                         <Button DockPanel.Dock="Right" Content="Print Barcode Label" Margin="12,0,0,0" Click="PrintLabel_Click"/>
+                        <Button DockPanel.Dock="Right" Content="Edit Product" Margin="12,0,0,0" Click="EditProduct_Click"/>
+                        <Button DockPanel.Dock="Right" Content="Add Product" Margin="12,0,0,0" Click="AddProduct_Click"/>
                         <TextBox x:Name="SearchBox" VerticalContentAlignment="Center" ToolTip="Search name, category, supplier or scan barcode" KeyDown="SearchBox_KeyDown" TextChanged="SearchBox_TextChanged"/>
                     </DockPanel>
                 </Border>
