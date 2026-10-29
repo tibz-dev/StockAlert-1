@@ -13,11 +13,13 @@ public sealed class CheckoutController : ControllerBase
 {
     private readonly IProductService _products;
     private readonly CheckoutPostingService _posting;
+    private readonly IBusinessProfileService _business;
 
-    public CheckoutController(IProductService products, CheckoutPostingService posting)
+    public CheckoutController(IProductService products, CheckoutPostingService posting, IBusinessProfileService business)
     {
         _products = products;
         _posting = posting;
+        _business = business;
     }
 
     [HttpPost("cash")]
@@ -75,7 +77,24 @@ public sealed class CheckoutController : ControllerBase
         try { subtotal = checked(lines.Sum(line => line.LineTotal)); }
         catch (OverflowException) { return BadRequest(new { message = "Cart total exceeds supported limits." }); }
 
-        return Ok(new CheckoutPreviewDto(lines, subtotal, lines.Sum(x => (long)x.Quantity),
+        var profile = await _business.GetAsync();
+        var vatRate = profile.IsVatRegistered ? profile.DefaultVatRate : 0m;
+        if (vatRate < 0 || vatRate > 100)
+            return Conflict(new { message = "Invalid configured VAT rate." });
+        decimal vatAmount, total;
+        try
+        {
+            vatAmount = decimal.Round(checked(subtotal * vatRate / 100m), 2,
+                MidpointRounding.AwayFromZero);
+            total = checked(subtotal + vatAmount);
+        }
+        catch (OverflowException)
+        {
+            return BadRequest(new { message = "Cart total exceeds supported limits." });
+        }
+
+        return Ok(new CheckoutPreviewDto(lines, subtotal, vatAmount, total,
+            lines.Sum(x => (long)x.Quantity),
             DateTime.UtcNow,
             "Estimate only. Final VAT, payment verification and stock deduction require transactional checkout."));
     }
