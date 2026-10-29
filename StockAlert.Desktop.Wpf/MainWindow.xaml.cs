@@ -39,6 +39,7 @@ public partial class MainWindow : Window
             return HasAnyRole("Owner", "Manager", "Sales");
         if (page == StocktakesPage || page == StockMovementsPage || page == InventoryPage)
             return HasAnyRole("Owner", "Manager", "Stock");
+        if (page == StaffBadgesPage) return HasAnyRole("Owner", "Manager");
         if (page == SuppliersPage || page == CustomersPage)
             return HasAnyRole("Owner", "Manager");
         return false;
@@ -99,6 +100,8 @@ public partial class MainWindow : Window
         StocktakesGrid.ItemsSource = null;
         StocktakeItemsGrid.ItemsSource = null;
         StockMovementsGrid.ItemsSource = null;
+        BadgeAssignmentsGrid.ItemsSource = null;
+        BadgeStaffPicker.ItemsSource = null;
     }
 
     private async void BadgeLogin_Click(object sender, RoutedEventArgs e)
@@ -127,6 +130,71 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void StaffBadges_Click(object sender, RoutedEventArgs e)
+    {
+        ShowPage(StaffBadgesPage);
+        if (!CanOpenPage(StaffBadgesPage)) return;
+        Title = "StockAlert Desktop | Staff Badges";
+        try
+        {
+            BadgeAdminStatus.Text = "Loading staff badge records...";
+            var staff = await _client.GetBadgeStaffAsync(ApiUrlBox.Text, AuthorizedToken());
+            var badges = await _client.GetBadgeAssignmentsAsync(ApiUrlBox.Text, AuthorizedToken());
+            BadgeStaffPicker.ItemsSource = staff;
+            BadgeAssignmentsGrid.ItemsSource = badges;
+            BadgeAdminStatus.Text = $"{staff.Count} accounts, {badges.Count} badge records.";
+        }
+        catch (Exception ex) { BadgeAdminStatus.Text = ex.Message; }
+    }
+
+    private async void EnrolBadge_Click(object sender, RoutedEventArgs e)
+    {
+        if (!HasAnyRole("Owner", "Manager"))
+        {
+            BadgeAdminStatus.Text = "Owner or Manager role required.";
+            return;
+        }
+        if (BadgeStaffPicker.SelectedItem is not BadgeStaffRow staff)
+        {
+            BadgeAdminStatus.Text = "Select a staff account first.";
+            return;
+        }
+        if (MessageBox.Show($"Issue a new staff badge for {staff.FullName}? Only print or provide the credential directly to its owner.",
+                "Confirm staff badge enrolment", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+            return;
+        try
+        {
+            var result = await _client.EnrolBadgeAsync(ApiUrlBox.Text, AuthorizedToken(), staff.UserId);
+            MessageBox.Show($"New credential (displayed once):\n\n{result.Badge}\n\nPrint or transfer it securely. Do not save it in a shared document.",
+                "New Staff Badge", MessageBoxButton.OK, MessageBoxImage.Information);
+            StaffBadges_Click(sender, e);
+        }
+        catch (Exception ex) { BadgeAdminStatus.Text = ex.Message; }
+    }
+
+    private async void RevokeBadge_Click(object sender, RoutedEventArgs e)
+    {
+        if (!HasAnyRole("Owner", "Manager"))
+        {
+            BadgeAdminStatus.Text = "Owner or Manager role required.";
+            return;
+        }
+        if (BadgeAssignmentsGrid.SelectedItem is not BadgeAssignmentRow badge || badge.IsRevoked)
+        {
+            BadgeAdminStatus.Text = "Select an active badge.";
+            return;
+        }
+        if (MessageBox.Show($"Revoke the selected badge for {badge.StaffName}? Already issued sessions may remain valid.",
+                "Confirm badge revocation", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+            return;
+        try
+        {
+            await _client.RevokeBadgeAsync(ApiUrlBox.Text, AuthorizedToken(), badge.Id);
+            StaffBadges_Click(sender, e);
+        }
+        catch (Exception ex) { BadgeAdminStatus.Text = ex.Message; }
+    }
+
     private void Dashboard_Click(object sender, RoutedEventArgs e)
     {
         ShowPage(DashboardPage);
@@ -150,6 +218,7 @@ public partial class MainWindow : Window
         StocktakesPage.Visibility = Visibility.Collapsed;
         QuotesPage.Visibility = Visibility.Collapsed;
         SalesPage.Visibility = Visibility.Collapsed;
+        StaffBadgesPage.Visibility = Visibility.Collapsed;
         LoginPage.Visibility = Visibility.Collapsed;
         ConnectionPage.Visibility = Visibility.Collapsed;
         if (page != LoginPage && page != ConnectionPage && !CanOpenPage(page))
