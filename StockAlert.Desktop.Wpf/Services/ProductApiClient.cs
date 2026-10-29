@@ -115,6 +115,36 @@ public sealed class ProductApiClient : IDisposable
             throw new HttpRequestException(await response.Content.ReadAsStringAsync());
     }
 
+    public async Task UpdateQuoteStatusAsync(string apiUrl, string jwt, Guid id, string status)
+    {
+        Configure(apiUrl, jwt);
+        using var request = new HttpRequestMessage(HttpMethod.Patch,
+            new Uri(new Uri(apiUrl.TrimEnd('/') + "/"), $"api/Quotes/{id}/status"))
+        {
+            Content = JsonContent.Create(new { status })
+        };
+        using var response = await _http.SendAsync(request);
+        await EnsureSuccessAsync(response);
+    }
+
+    public async Task ConvertQuoteToSaleAsync(string apiUrl, string jwt, Guid id)
+    {
+        Configure(apiUrl, jwt);
+        using var response = await _http.PostAsync(new Uri(
+            new Uri(apiUrl.TrimEnd('/') + "/"), $"api/Quotes/{id}/convert-to-sale"), null);
+        await EnsureSuccessAsync(response);
+    }
+
+    public async Task RecordQuotePaymentAsync(string apiUrl, string jwt, Guid id,
+        decimal amount, string method, string? reference)
+    {
+        Configure(apiUrl, jwt);
+        using var response = await _http.PostAsJsonAsync(new Uri(
+            new Uri(apiUrl.TrimEnd('/') + "/"), $"api/Quotes/{id}/payments"),
+            new { amount, method, reference });
+        await EnsureSuccessAsync(response);
+    }
+
     public async Task<IReadOnlyList<QuoteRow>> GetQuotesAsync(string apiUrl, string jwt)
     {
         Configure(apiUrl, jwt);
