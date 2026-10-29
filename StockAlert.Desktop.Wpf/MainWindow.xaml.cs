@@ -138,6 +138,7 @@ public partial class MainWindow : Window
     private async void Suppliers_Click(object sender, RoutedEventArgs e)
     {
         ShowPage(SuppliersPage);
+        if (!CanOpenPage(SuppliersPage)) return;
         Title = "StockAlert Desktop | Suppliers";
         try
         {
@@ -157,6 +158,7 @@ public partial class MainWindow : Window
     private async void Customers_Click(object sender, RoutedEventArgs e)
     {
         ShowPage(CustomersPage);
+        if (!CanOpenPage(CustomersPage)) return;
         Title = "StockAlert Desktop | Customers";
         try
         {
@@ -176,6 +178,7 @@ public partial class MainWindow : Window
     private async void StockMovements_Click(object sender, RoutedEventArgs e)
     {
         ShowPage(StockMovementsPage);
+        if (!CanOpenPage(StockMovementsPage)) return;
         Title = "StockAlert Desktop | Stock Movements";
         try
         {
@@ -192,6 +195,7 @@ public partial class MainWindow : Window
     private async void Stocktakes_Click(object sender, RoutedEventArgs e)
     {
         ShowPage(StocktakesPage);
+        if (!CanOpenPage(StocktakesPage)) return;
         Title = "StockAlert Desktop | Stocktakes";
         try
         {
@@ -427,6 +431,7 @@ public partial class MainWindow : Window
     private async void Quotes_Click(object sender, RoutedEventArgs e)
     {
         ShowPage(QuotesPage);
+        if (!CanOpenPage(QuotesPage)) return;
         Title = "StockAlert Desktop | Quotes";
         try
         {
@@ -602,6 +607,7 @@ public partial class MainWindow : Window
     private async void Sales_Click(object sender, RoutedEventArgs e)
     {
         ShowPage(SalesPage);
+        if (!CanOpenPage(SalesPage)) return;
         Title = "StockAlert Desktop | Sales";
         try
         {
@@ -642,7 +648,8 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            LoginPasswordBox.Clear();
+            SignOutSession();
+            ShowPage(LoginPage);
             LoginStatusText.Text = "Sign-in failed.";
             MessageBox.Show(ex.Message, "Sign In", MessageBoxButton.OK, MessageBoxImage.Error);
         }
