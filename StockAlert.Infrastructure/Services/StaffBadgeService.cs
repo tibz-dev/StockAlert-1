@@ -46,8 +46,8 @@ public sealed class StaffBadgeService
         var rows = await _users.Users.AsNoTracking()
             .OrderBy(x => x.FullName)
             .Select(x => new { UserId = x.Id, x.FullName, x.Email })
-            .Cast<object>()
-            .ToArrayAsync(ct);
+            .ToListAsync(ct);
+        return rows.Cast<object>().ToArray();
     }
 
     private static string Hash(string badge) =>
