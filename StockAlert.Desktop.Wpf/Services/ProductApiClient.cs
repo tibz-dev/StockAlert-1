@@ -12,14 +12,15 @@ public sealed class ProductApiClient : IDisposable
     public async Task<IReadOnlyList<ProductRow>> GetProductsAsync(string apiUrl, string jwt)
     {
         Configure(apiUrl, jwt);
-        return await _http.GetFromJsonAsync<List<ProductRow>>("api/Products")
-            ?? new List<ProductRow>();
+        using var response = await _http.GetAsync(new Uri(new Uri(apiUrl.TrimEnd('/') + "/"), "api/Products"));
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<List<ProductRow>>() ?? new List<ProductRow>();
     }
 
     public async Task<string> GetBarcodeSvgAsync(string apiUrl, string jwt, Guid id)
     {
         Configure(apiUrl, jwt);
-        using var response = await _http.GetAsync($"api/Products/{id}/barcode-label");
+        using var response = await _http.GetAsync(new Uri(new Uri(apiUrl.TrimEnd('/') + "/"), $"api/Products/{id}/barcode-label"));
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadAsStringAsync();
     }
@@ -34,7 +35,6 @@ public sealed class ProductApiClient : IDisposable
         if (string.IsNullOrWhiteSpace(jwt))
             throw new ArgumentException("An authenticated API token is required.");
 
-        _http.BaseAddress = new Uri(uri.ToString().TrimEnd('/') + "/");
         _http.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", jwt.Trim());
     }
