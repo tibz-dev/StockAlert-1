@@ -64,8 +64,8 @@
                         <Border Background="#2563EB" CornerRadius="7" Margin="0,1">
                             <Button Content="Inventory" Click="Inventory_Click" Background="Transparent" Foreground="White" HorizontalContentAlignment="Left" Margin="0" Padding="18,12"/>
                         </Border>
-                        <TextBlock Style="{StaticResource SidebarText}" Text="Stock Movements"/>
-                        <TextBlock Style="{StaticResource SidebarText}" Text="Stocktakes"/>
+                        <Button Content="Stock Movements" Click="StockMovements_Click" Background="Transparent" Foreground="#94A3B8" HorizontalContentAlignment="Left" Margin="0,1" Padding="18,12"/>
+                        <Button Content="Stocktakes" Click="Stocktakes_Click" Background="Transparent" Foreground="#94A3B8" HorizontalContentAlignment="Left" Margin="0,1" Padding="18,12"/>
                         <Button Content="Suppliers" Click="Suppliers_Click" Background="Transparent" Foreground="#94A3B8" HorizontalContentAlignment="Left" Margin="0,1" Padding="18,12"/>
                         <TextBlock Style="{StaticResource SidebarText}" Text="Quotes"/>
                         <Button Content="Customers" Click="Customers_Click" Background="Transparent" Foreground="#94A3B8" HorizontalContentAlignment="Left" Margin="0,1" Padding="18,12"/>
@@ -200,6 +200,48 @@
                     </DataGrid>
                 </Border>
                 <TextBlock x:Name="CustomersStatus" Text="Sign in to load customers." Foreground="#64748B" Margin="0,12"/>
+            </StackPanel>
+        </ScrollViewer>
+        <ScrollViewer x:Name="StockMovementsPage" Grid.Column="1" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="32">
+                <TextBlock Text="Inventory audit" Foreground="#2563EB" FontWeight="SemiBold"/>
+                <TextBlock Text="Stock Movements" FontSize="28" FontWeight="Bold" Margin="0,6,0,20"/>
+                <Button Content="Refresh Movements" HorizontalAlignment="Left" Click="StockMovements_Click" Margin="0,0,0,16"/>
+                <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10" Padding="8">
+                    <DataGrid x:Name="StockMovementsGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MinHeight="300">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Date" Binding="{Binding CreatedAt, StringFormat=yyyy-MM-dd HH:mm}" Width="*"/>
+                            <DataGridTextColumn Header="Product" Binding="{Binding ProductName}" Width="2*"/>
+                            <DataGridTextColumn Header="Previous" Binding="{Binding PreviousQuantity}" Width="*"/>
+                            <DataGridTextColumn Header="Change" Binding="{Binding QuantityChange}" Width="*"/>
+                            <DataGridTextColumn Header="New" Binding="{Binding NewQuantity}" Width="*"/>
+                            <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" Width="2*"/>
+                            <DataGridTextColumn Header="By" Binding="{Binding PerformedBy}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+                <TextBlock x:Name="StockMovementsStatus" Text="Sign in to load movements." Foreground="#64748B" Margin="0,12"/>
+            </StackPanel>
+        </ScrollViewer>
+        <ScrollViewer x:Name="StocktakesPage" Grid.Column="1" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="32">
+                <TextBlock Text="Inventory reconciliation" Foreground="#2563EB" FontWeight="SemiBold"/>
+                <TextBlock Text="Stocktakes" FontSize="28" FontWeight="Bold" Margin="0,6,0,20"/>
+                <Button Content="Refresh Stocktakes" HorizontalAlignment="Left" Click="Stocktakes_Click" Margin="0,0,0,16"/>
+                <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10" Padding="8">
+                    <DataGrid x:Name="StocktakesGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MinHeight="300">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Reference" Binding="{Binding ReferenceNumber}" Width="*"/>
+                            <DataGridTextColumn Header="Title" Binding="{Binding Title}" Width="2*"/>
+                            <DataGridTextColumn Header="Location" Binding="{Binding Location}" Width="*"/>
+                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="*"/>
+                            <DataGridTextColumn Header="Items" Binding="{Binding TotalItems}" Width="*"/>
+                            <DataGridTextColumn Header="Counted" Binding="{Binding CountedItems}" Width="*"/>
+                            <DataGridTextColumn Header="Variances" Binding="{Binding VarianceItems}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+                <TextBlock x:Name="StocktakesStatus" Text="Sign in to load stocktakes." Foreground="#64748B" Margin="0,12"/>
             </StackPanel>
         </ScrollViewer>
     </Grid>
