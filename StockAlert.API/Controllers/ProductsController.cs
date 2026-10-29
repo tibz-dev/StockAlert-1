@@ -33,6 +33,21 @@ public class ProductsController : ControllerBase
         return product == null ? NotFound() : Ok(product);
     }
 
+    [HttpGet("{id:guid}/barcode-label")]
+    public async Task<IActionResult> GetBarcodeLabel(Guid id)
+    {
+        var product = await _productService.GetProductByIdAsync(id);
+        if (product == null)
+            return NotFound(new { message = "Product not found." });
+        if (string.IsNullOrWhiteSpace(product.Barcode))
+            return Conflict(new { message = "Product has no barcode." });
+
+        var svg = StockAlert.API.Services.BarcodeLabelService.CreateSvg(
+            product.Barcode, product.Name, product.Price);
+        Response.Headers.CacheControl = "no-store";
+        return Content(svg, "image/svg+xml; charset=utf-8");
+    }
+
     [HttpPost]
     public async Task<IActionResult> Create(CreateProductRequest request)
     {
