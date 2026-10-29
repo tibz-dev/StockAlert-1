@@ -105,9 +105,9 @@ public partial class MainWindow : Window
     {
         try
         {
-            SignOutSession();
             var badge = BadgeLoginBox.Text.Trim();
             var password = LoginPasswordBox.Password;
+            SignOutSession();
             if (string.IsNullOrWhiteSpace(badge) || string.IsNullOrWhiteSpace(password))
                 throw new InvalidOperationException("Scan an enrolled staff badge and enter your password.");
             _sessionToken = await _client.LoginWithBadgeAsync(ApiUrlBox.Text, badge, password);
